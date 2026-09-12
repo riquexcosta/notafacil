@@ -4,6 +4,8 @@
   "description": "API do NotaFácil — controle de notas fiscais eletrônicas e comparação de preços",
   "main": "src/index.js",
   "scripts": {
+    "dev": "node --watch src/index.js",
+    "start": "node src/index.js",
     "test": "node --test tests/*.test.js"
   },
   "keywords": [],
