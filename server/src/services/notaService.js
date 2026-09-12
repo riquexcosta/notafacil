@@ -198,3 +198,68 @@ export function obterNota(usuarioId, notaId) {
   nota.itens = compararComHistorico(usuarioId, notaId);
   return nota;
 }
+
+/** Indicadores agregados exibidos no painel inicial. */
+export function resumoDoUsuario(usuarioId) {
+  const totais = db
+    .prepare(
+      `SELECT COUNT(*)                       AS totalNotas,
+              COALESCE(SUM(valor_total), 0)  AS totalGasto,
+              COALESCE(SUM(valor_tributos), 0) AS totalTributos,
+              MIN(data_emissao)              AS primeiraCompra,
+              MAX(data_emissao)              AS ultimaCompra
+         FROM nota_fiscal WHERE usuario_id = ?`
+    )
+    .get(usuarioId);
+
+  const totalEstabelecimentos = db
+    .prepare('SELECT COUNT(DISTINCT empresa_id) AS total FROM nota_fiscal WHERE usuario_id = ?')
+    .get(usuarioId).total;
+
+  const totalProdutos = db
+    .prepare(
+      `SELECT COUNT(DISTINCT i.produto_id) AS total
+         FROM item_nota i JOIN nota_fiscal n ON n.id = i.nota_id
+        WHERE n.usuario_id = ?`
+    )
+    .get(usuarioId).total;
+
+  const gastoPorMes = db
+    .prepare(
+      `SELECT substr(data_emissao, 1, 7) AS mes, ROUND(SUM(valor_total), 2) AS total
+         FROM nota_fiscal WHERE usuario_id = ?
+        GROUP BY mes ORDER BY mes ASC`
+    )
+    .all(usuarioId);
+
+  const maioresVariacoes = db
+    .prepare(
+      `SELECT p.id, p.descricao, p.unidade,
+              MIN(i.valor_unitario) AS menorPreco,
+              MAX(i.valor_unitario) AS maiorPreco,
+              COUNT(DISTINCT n.id)  AS ocorrencias
+         FROM item_nota i
+         JOIN nota_fiscal n ON n.id = i.nota_id
+         JOIN produto p     ON p.id = i.produto_id
+        WHERE n.usuario_id = ?
+        GROUP BY p.id
+       HAVING ocorrencias >= 2 AND menorPreco > 0
+        ORDER BY (maiorPreco - menorPreco) / menorPreco DESC
+        LIMIT 5`
+    )
+    .all(usuarioId)
+    .map((l) => ({
+      ...l,
+      variacaoPercentual: Number((((l.maiorPreco - l.menorPreco) / l.menorPreco) * 100).toFixed(1))
+    }));
+
+  return {
+    ...totais,
+    totalGasto: Number(totais.totalGasto.toFixed(2)),
+    totalTributos: Number(totais.totalTributos.toFixed(2)),
+    totalEstabelecimentos,
+    totalProdutos,
+    gastoPorMes,
+    maioresVariacoes
+  };
+}

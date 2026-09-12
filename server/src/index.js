@@ -14,7 +14,8 @@ import {
   compararComHistorico,
   importarNota,
   listarNotas,
-  obterNota
+  obterNota,
+  resumoDoUsuario
 } from './services/notaService.js';
 import { produtosRecorrentes } from './services/produtoService.js';
 
@@ -126,6 +127,14 @@ app.get(
   rota((req, res) =>
     res.json(produtosRecorrentes(req.usuarioId, Number(req.query.minimo ?? 2)))
   )
+);
+
+/* ------------------------------------------------------------- relatórios */
+
+app.get(
+  '/api/relatorios/resumo',
+  exigirAutenticacao,
+  rota((req, res) => res.json(resumoDoUsuario(req.usuarioId)))
 );
 
 /* ----------------------------------------------------- tratamento de erro */

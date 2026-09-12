@@ -9,7 +9,9 @@ process.env.DB_PATH = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'notafacil
 
 const { db } = await import('../src/db/index.js');
 const { calcularDigitoVerificador } = await import('../src/domain/chaveAcesso.js');
-const { importarNota, obterNota } = await import('../src/services/notaService.js');
+const { importarNota, obterNota, resumoDoUsuario } = await import(
+  '../src/services/notaService.js'
+);
 const { produtosRecorrentes, normalizarDescricao } = await import(
   '../src/services/produtoService.js'
 );
@@ -106,6 +108,14 @@ test('o produto é reconhecido pelo EAN em todas as notas', () => {
   assert.equal(recorrentes[0].ocorrencias, 4);
   assert.equal(recorrentes[0].menorPreco, 4.5);
   assert.equal(recorrentes[0].maiorPreco, 6.0);
+});
+
+test('o resumo agrega notas, gasto e estabelecimentos', () => {
+  const resumo = resumoDoUsuario(usuarioId);
+  assert.equal(resumo.totalNotas, 4);
+  assert.equal(resumo.totalEstabelecimentos, 1);
+  assert.equal(resumo.totalProdutos, 1);
+  assert.equal(resumo.totalGasto, 40.04);
 });
 
 test('normaliza descrições para comparação quando não há EAN', () => {
