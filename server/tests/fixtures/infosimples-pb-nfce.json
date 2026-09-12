@@ -1,0 +1,68 @@
+{
+  "code": 200,
+  "code_message": "A requisição foi processada com sucesso.",
+  "errors": [],
+  "header": { "api_version": "v2", "service": "sefaz/pb/nfce", "billable": true, "price": "0.24" },
+  "data_count": 1,
+  "data": [
+    {
+      "cancelada": null,
+      "consumidor": { "cpf": "", "cnpj": null, "nome": "" },
+      "emitente": {
+        "cnpj": "64.587.757/0001-06",
+        "endereco": "Avenida Presidente Washington Luiz, 502, loja",
+        "nome_razao_social": "leal material"
+      },
+      "formas_pagamento": [{ "forma_pagamento": "01-Dinheiro", "normalizado_valor_pago": 17.9, "valor_pago": "17,90" }],
+      "informacoes_nota": {
+        "ambiente": null,
+        "chave_acesso": "25260964587757000106650010000008981393369076",
+        "data_autorizacao": "10/09/2026",
+        "data_emissao": "2026-09-10",
+        "hora_autorizacao": "16:05:45",
+        "hora_emissao": "16:05:44",
+        "numero": "898",
+        "protocolo_autorizacao": "225260366861886",
+        "serie": "1",
+        "tipo_emissao": "Emissão normal (não em contingência)",
+        "versao_xlst": null,
+        "versao_xml": "4.00"
+      },
+      "mensagem": null,
+      "normalizado_quantidade_total_items": 21.0,
+      "normalizado_tributos_totais": 8.34,
+      "normalizado_valor_a_pagar": 17.9,
+      "normalizado_valor_desconto": 0.0,
+      "normalizado_valor_total": 17.9,
+      "produtos": [
+        {
+          "codigo": "CFOP5102",
+          "nome": "ESTILETE 18MM",
+          "normalizado_quantidade": 1.0,
+          "normalizado_valor_total_produto": 11.9,
+          "normalizado_valor_unitario": 11.9,
+          "quantidade": "1,00",
+          "unidade": "UN",
+          "valor_total_produto": "11,90",
+          "valor_unitario": "11,9"
+        },
+        {
+          "codigo": "7892183539308",
+          "nome": "PARAFUSO JOMARCA 3,5X25",
+          "normalizado_quantidade": 20.0,
+          "normalizado_valor_total_produto": 6.0,
+          "normalizado_valor_unitario": 0.3,
+          "quantidade": "20,00",
+          "unidade": "1",
+          "valor_total_produto": "6,00",
+          "valor_unitario": "0,3"
+        }
+      ],
+      "quantidade_total_items": "21.0",
+      "tributos_totais": "8.34",
+      "valor_a_pagar": "17,90",
+      "valor_desconto": "0,00",
+      "valor_total": "17,90"
+    }
+  ]
+}

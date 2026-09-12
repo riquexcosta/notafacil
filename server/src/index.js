@@ -8,11 +8,14 @@ import { extrairChave, interpretarChave, validarChave, formatarCnpj } from './do
 import {
   CadeiaDeProvedores,
   ProvedorCatalogoLocal,
+  ProvedorConsultaAssistida,
+  ProvedorInfosimples,
   ProvedorSefaz,
   ProvedorXmlAutorizado
 } from './domain/nfe/provedores.js';
 import {
   compararComHistorico,
+  garantirNotaInedita,
   importarNota,
   listarEmpresas,
   listarNotas,
@@ -31,9 +34,21 @@ app.use(cors());
 app.use(express.json({ limit: '5mb' }));
 app.use(express.text({ type: ['application/xml', 'text/xml'], limit: '5mb' }));
 
-// Composição das dependências: a SEFAZ é tentada primeiro e, indisponível,
-// a cadeia recai sobre o catálogo local.
-const provedorConsulta = new CadeiaDeProvedores([new ProvedorSefaz(), new ProvedorCatalogoLocal()]);
+// Composição das dependências: a SEFAZ é tentada primeiro; com token, a
+// Infosimples consulta o portal; sem ela (ou em falha), a consulta passa a ser
+// assistida (portal oficial + XML). O catálogo local de itens sintéticos só
+// entra no modo de demonstração, que não faz chamadas pagas.
+const modoDemo = process.env.NFE_MODO_DEMO === '1' || process.argv.includes('--demo');
+const tokenInfosimples = process.env.INFOSIMPLES_TOKEN?.trim();
+const provedorConsulta = new CadeiaDeProvedores(
+  modoDemo
+    ? [new ProvedorSefaz(), new ProvedorCatalogoLocal()]
+    : [
+        new ProvedorSefaz(),
+        ...(tokenInfosimples ? [new ProvedorInfosimples({ token: tokenInfosimples })] : []),
+        new ProvedorConsultaAssistida()
+      ]
+);
 const provedorXml = new ProvedorXmlAutorizado();
 
 const rota = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
@@ -76,7 +91,9 @@ app.post(
       return res.status(422).json({ erro: 'Chave de acesso inválida: o dígito verificador não confere.' });
     }
 
-    const nota = await provedorConsulta.consultar(chave);
+    // Recusa a duplicidade antes da consulta: a Infosimples cobra por requisição.
+    garantirNotaInedita(req.usuarioId, chave);
+    const nota = await provedorConsulta.consultar(chave, { conteudoQr: conteudo });
     const notaId = importarNota(req.usuarioId, nota);
 
     res.status(201).json({
@@ -214,13 +231,26 @@ app.use((erro, _req, res, _next) => {
   }
   const status = erro.status ?? 500;
   if (status === 500) console.error(erro);
-  res.status(status).json({ erro: erro.message ?? 'Erro interno do servidor.' });
+  res.status(status).json({
+    erro: erro.message ?? 'Erro interno do servidor.',
+    ...(erro.codigo && { codigo: erro.codigo }),
+    ...(erro.urlConsulta !== undefined && { urlConsulta: erro.urlConsulta })
+  });
 });
 
 const PORTA = Number(process.env.PORT ?? 3333);
 
 if (process.env.NODE_ENV !== 'test') {
-  app.listen(PORTA, () => console.log(`NotaFácil API ouvindo em http://localhost:${PORTA}`));
+  app.listen(PORTA, () =>
+    console.log(
+      `NotaFácil API ouvindo em http://localhost:${PORTA}` +
+        (modoDemo
+          ? ' (modo demonstração: consulta por chave usa o catálogo local)'
+          : tokenInfosimples
+            ? ' (consulta de NFC-e via Infosimples ativa)'
+            : '')
+    )
+  );
 }
 
 export { app };

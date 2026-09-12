@@ -30,6 +30,7 @@ async function requisitar(caminho, opcoes = {}) {
   if (!resposta.ok) {
     const erro = new Error(dados?.erro ?? 'Falha na comunicação com o servidor.');
     erro.status = resposta.status;
+    erro.dados = dados;
     throw erro;
   }
   return dados;

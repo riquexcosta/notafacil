@@ -17,7 +17,9 @@ export function normalizarDescricao(descricao) {
 
 /**
  * Resolve a identidade do produto na base.
- * Ordem de precedência: EAN (GTIN) → NCM + descrição normalizada → novo registro.
+ * Ordem de precedência: EAN (GTIN) → NCM + descrição normalizada → descrição
+ * normalizada (quando a fonte não informa o NCM, como a consulta ao portal) →
+ * novo registro.
  */
 export function resolverProduto(item) {
   if (item.ean) {
@@ -28,8 +30,10 @@ export function resolverProduto(item) {
       }
       return existente.id;
     }
-  } else if (item.ncm) {
-    const candidatos = db.prepare('SELECT * FROM produto WHERE ncm = ? AND ean IS NULL').all(item.ncm);
+  } else {
+    const candidatos = item.ncm
+      ? db.prepare('SELECT * FROM produto WHERE ncm = ? AND ean IS NULL').all(item.ncm)
+      : db.prepare('SELECT * FROM produto WHERE ncm IS NULL AND ean IS NULL').all();
     const alvo = normalizarDescricao(item.descricao);
     const achado = candidatos.find((c) => normalizarDescricao(c.descricao) === alvo);
     if (achado) return achado.id;

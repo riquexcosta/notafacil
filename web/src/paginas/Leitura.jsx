@@ -60,7 +60,7 @@ export default function Leitura() {
     try {
       setResultado(await acao());
     } catch (e) {
-      setErro(e.message);
+      setErro({ mensagem: e.message, codigo: e.dados?.codigo, urlConsulta: e.dados?.urlConsulta });
     } finally {
       setCarregando(false);
     }
@@ -129,7 +129,7 @@ export default function Leitura() {
               className="mono"
               value={chave}
               onChange={(e) => setChave(e.target.value)}
-              placeholder="25260307526557000100650010000010011101371371"
+              placeholder="25260307526557000100650010000010011101371370"
             />
             <span className="dica">
               Aceita os 44 dígitos, com ou sem separadores, ou a URL completa de consulta da SEFAZ.
@@ -152,15 +152,48 @@ export default function Leitura() {
           </div>
         )}
 
-        {erro && (
-          <div className="aviso erro" style={{ marginTop: 14 }}>
-            {erro}
-          </div>
+        {erro?.codigo === 'CONSULTA_ASSISTIDA' ? (
+          <ConsultaAssistida erro={erro} aoEscolherXml={enviarXml} />
+        ) : (
+          erro && (
+            <div className="aviso erro" style={{ marginTop: 14 }}>
+              {erro.mensagem}
+            </div>
+          )
         )}
       </div>
 
       {resultado && <ResultadoLeitura resultado={resultado} />}
     </>
+  );
+}
+
+// O portal da SEFAZ exige verificação humana para exibir a nota: o consumidor
+// consulta no site oficial e traz o XML autorizado para a importação.
+function ConsultaAssistida({ erro, aoEscolherXml }) {
+  return (
+    <div className="aviso informacao" style={{ marginTop: 14 }}>
+      <p style={{ margin: '0 0 8px' }}>{erro.mensagem}</p>
+      <ol style={{ margin: '0 0 10px', paddingLeft: 20 }}>
+        {erro.urlConsulta && (
+          <li>
+            Abra a{' '}
+            <a href={erro.urlConsulta} target="_blank" rel="noopener noreferrer">
+              consulta oficial da SEFAZ
+            </a>{' '}
+            e conclua a verificação.
+          </li>
+        )}
+        <li>Obtenha o XML autorizado da nota — no portal, quando disponível, ou com o estabelecimento emissor.</li>
+        <li>Importe o arquivo abaixo.</li>
+      </ol>
+      <input
+        type="file"
+        accept=".xml,text/xml,application/xml"
+        aria-label="XML de autorização da nota"
+        onChange={aoEscolherXml}
+      />
+    </div>
   );
 }
 

@@ -69,10 +69,14 @@ export function compararComHistorico(usuarioId, notaId) {
  * Toda a gravação ocorre em uma única transação: empresa, produtos, nota,
  * itens e a tabela de preços por estabelecimento.
  */
-export const importarNota = db.transaction((usuarioId, nota) => {
+/**
+ * Recusa a chave já importada pelo usuário. Chamada também antes da consulta ao
+ * provedor, que pode ser paga por requisição.
+ */
+export function garantirNotaInedita(usuarioId, chave) {
   const jaImportada = db
     .prepare('SELECT id FROM nota_fiscal WHERE usuario_id = ? AND chave_acesso = ?')
-    .get(usuarioId, nota.chave);
+    .get(usuarioId, chave);
 
   if (jaImportada) {
     const erro = new Error('Esta nota fiscal já consta no seu histórico.');
@@ -80,6 +84,10 @@ export const importarNota = db.transaction((usuarioId, nota) => {
     erro.notaId = jaImportada.id;
     throw erro;
   }
+}
+
+export const importarNota = db.transaction((usuarioId, nota) => {
+  garantirNotaInedita(usuarioId, nota.chave);
 
   const empresaId = resolverEmpresa(nota.emitente);
 

@@ -9,10 +9,10 @@ process.env.DB_PATH = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'notafacil
 
 const { db } = await import('../src/db/index.js');
 const { calcularDigitoVerificador } = await import('../src/domain/chaveAcesso.js');
-const { importarNota, obterNota, resumoDoUsuario } = await import(
+const { garantirNotaInedita, importarNota, obterNota, resumoDoUsuario } = await import(
   '../src/services/notaService.js'
 );
-const { produtosRecorrentes, normalizarDescricao } = await import(
+const { produtosRecorrentes, normalizarDescricao, resolverProduto } = await import(
   '../src/services/produtoService.js'
 );
 const { ProvedorXmlAutorizado } = await import('../src/domain/nfe/provedores.js');
@@ -102,6 +102,11 @@ test('recusa a mesma chave de acesso duas vezes', () => {
   assert.throws(() => importarNota(usuarioId, nota(1, '2026-03-10', 5.0)), /já consta/i);
 });
 
+test('detecta a nota já importada antes de consultar o provedor', () => {
+  assert.throws(() => garantirNotaInedita(usuarioId, chaveValida(1)), { status: 409 });
+  assert.doesNotThrow(() => garantirNotaInedita(usuarioId, chaveValida(99)));
+});
+
 test('o produto é reconhecido pelo EAN em todas as notas', () => {
   const recorrentes = produtosRecorrentes(usuarioId);
   assert.equal(recorrentes.length, 1);
@@ -120,6 +125,12 @@ test('o resumo agrega notas, gasto e estabelecimentos', () => {
 
 test('normaliza descrições para comparação quando não há EAN', () => {
   assert.equal(normalizarDescricao('Café Torrado  e Moído 500g'), 'CAFE TORRADO E MOIDO 500G');
+});
+
+test('sem EAN nem NCM, o produto é reconhecido pela descrição normalizada', () => {
+  const primeiro = resolverProduto({ descricao: 'Estilete 18mm', unidade: 'UN' });
+  const segundo = resolverProduto({ descricao: 'ESTILETE  18MM', unidade: 'UN' });
+  assert.equal(segundo, primeiro);
 });
 
 test('o provedor de XML extrai emitente e itens do documento autorizado', async () => {

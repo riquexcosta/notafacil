@@ -48,7 +48,7 @@ export default function DetalheNota() {
         <div className="cartao indicador">
           <span className="rotulo">Origem</span>
           <span className="valor" style={{ fontSize: '1.1rem' }}>
-            {{ qrcode: 'QR Code', xml: 'XML autorizado', demo: 'Catálogo local', manual: 'Manual' }[
+            {{ qrcode: 'QR Code', xml: 'XML autorizado', infosimples: 'SEFAZ (Infosimples)', demo: 'Catálogo local', manual: 'Manual' }[
               nota.origem
             ] ?? nota.origem}
           </span>
