@@ -54,7 +54,9 @@ export const api = {
   listarNotas: (filtros) => requisitar(comQuery('/notas', filtros)),
   obterNota: (id) => requisitar(`/notas/${id}`),
 
+  buscarProdutos: (filtros) => requisitar(comQuery('/produtos', filtros)),
   produtosRecorrentes: () => requisitar('/produtos/recorrentes'),
+  historicoProduto: (id) => requisitar(`/produtos/${id}/historico`),
 
   resumo: () => requisitar('/relatorios/resumo')
 };

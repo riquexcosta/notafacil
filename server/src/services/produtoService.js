@@ -61,6 +61,25 @@ export function resolverEmpresa(emitente) {
   return Number(info.lastInsertRowid);
 }
 
+/** Série histórica de preços pagos pelo usuário para um produto. */
+export function historicoDoProduto(usuarioId, produtoId) {
+  return db
+    .prepare(
+      `SELECT n.data_emissao AS dataEmissao,
+              n.chave_acesso AS chave,
+              e.nome_fantasia AS empresa,
+              e.cnpj          AS cnpj,
+              i.valor_unitario AS valorUnitario,
+              i.quantidade     AS quantidade
+         FROM item_nota i
+         JOIN nota_fiscal n ON n.id = i.nota_id
+         JOIN empresa e     ON e.id = n.empresa_id
+        WHERE n.usuario_id = ? AND i.produto_id = ?
+        ORDER BY n.data_emissao ASC`
+    )
+    .all(usuarioId, produtoId);
+}
+
 /** Produtos que aparecem em duas ou mais notas do usuário. */
 export function produtosRecorrentes(usuarioId, minimoOcorrencias = 2) {
   return db
@@ -88,4 +107,40 @@ export function produtosRecorrentes(usuarioId, minimoOcorrencias = 2) {
           ? Number((((linha.maiorPreco - linha.menorPreco) / linha.menorPreco) * 100).toFixed(1))
           : 0
     }));
+}
+
+export function buscarProdutos(usuarioId, { ean, ncm, termo } = {}) {
+  const condicoes = ['n.usuario_id = ?'];
+  const parametros = [usuarioId];
+
+  if (ean) {
+    condicoes.push('p.ean = ?');
+    parametros.push(ean);
+  }
+  if (ncm) {
+    condicoes.push('p.ncm LIKE ?');
+    parametros.push(`${ncm}%`);
+  }
+  if (termo) {
+    condicoes.push('p.descricao LIKE ?');
+    parametros.push(`%${termo.toUpperCase()}%`);
+  }
+
+  return db
+    .prepare(
+      `SELECT p.id, p.descricao, p.ean, p.ncm, p.unidade,
+              COUNT(DISTINCT n.id)            AS ocorrencias,
+              ROUND(AVG(i.valor_unitario), 2) AS precoMedio,
+              MIN(i.valor_unitario)           AS menorPreco,
+              MAX(i.valor_unitario)           AS maiorPreco,
+              MAX(n.data_emissao)             AS ultimaCompra
+         FROM produto p
+         JOIN item_nota i   ON i.produto_id = p.id
+         JOIN nota_fiscal n ON n.id = i.nota_id
+        WHERE ${condicoes.join(' AND ')}
+        GROUP BY p.id
+        ORDER BY ocorrencias DESC, p.descricao ASC
+        LIMIT 100`
+    )
+    .all(...parametros);
 }

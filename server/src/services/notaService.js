@@ -1,5 +1,5 @@
 import { db } from '../db/index.js';
-import { resolverEmpresa, resolverProduto } from './produtoService.js';
+import { resolverEmpresa, resolverProduto, historicoDoProduto } from './produtoService.js';
 
 /**
  * Compara cada item de uma nota recém-importada com o histórico de compras do
@@ -263,3 +263,5 @@ export function resumoDoUsuario(usuarioId) {
     maioresVariacoes
   };
 }
+
+export { historicoDoProduto };

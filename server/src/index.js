@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import { z } from 'zod';
 
+import { db } from './db/index.js';
 import { entrar, exigirAutenticacao, registrar } from './auth.js';
 import { extrairChave, interpretarChave, validarChave, formatarCnpj } from './domain/chaveAcesso.js';
 import {
@@ -17,7 +18,11 @@ import {
   obterNota,
   resumoDoUsuario
 } from './services/notaService.js';
-import { produtosRecorrentes } from './services/produtoService.js';
+import {
+  buscarProdutos,
+  historicoDoProduto,
+  produtosRecorrentes
+} from './services/produtoService.js';
 
 const app = express();
 app.use(cors());
@@ -122,11 +127,59 @@ app.get(
 /* --------------------------------------------------------------- produtos */
 
 app.get(
+  '/api/produtos',
+  exigirAutenticacao,
+  rota((req, res) => res.json(buscarProdutos(req.usuarioId, req.query)))
+);
+
+app.get(
   '/api/produtos/recorrentes',
   exigirAutenticacao,
   rota((req, res) =>
     res.json(produtosRecorrentes(req.usuarioId, Number(req.query.minimo ?? 2)))
   )
+);
+
+app.get(
+  '/api/produtos/:id/historico',
+  exigirAutenticacao,
+  rota((req, res) => {
+    const produtoId = Number(req.params.id);
+    const produto = db.prepare('SELECT * FROM produto WHERE id = ?').get(produtoId);
+    if (!produto) return res.status(404).json({ erro: 'Produto não encontrado.' });
+
+    const historico = historicoDoProduto(req.usuarioId, produtoId);
+    const precos = historico.map((h) => h.valorUnitario);
+
+    // Preço mais recente do mesmo produto em cada estabelecimento conhecido
+    const ofertas = db
+      .prepare(
+        `SELECT e.id, e.nome_fantasia AS empresa, e.razao_social AS razaoSocial, e.municipio, e.uf,
+                pep.valor_unitario AS valorUnitario, pep.data_referencia AS dataReferencia
+           FROM preco_empresa_produto pep
+           JOIN empresa e ON e.id = pep.empresa_id
+          WHERE pep.produto_id = ?
+          ORDER BY pep.valor_unitario ASC`
+      )
+      .all(produtoId);
+
+    res.json({
+      produto,
+      historico,
+      ofertas,
+      estatisticas: precos.length
+        ? {
+            compras: precos.length,
+            menorPreco: Math.min(...precos),
+            maiorPreco: Math.max(...precos),
+            precoMedio: Number((precos.reduce((s, v) => s + v, 0) / precos.length).toFixed(2)),
+            variacaoPercentual: Number(
+              (((precos[precos.length - 1] - precos[0]) / precos[0]) * 100).toFixed(1)
+            )
+          }
+        : null
+    });
+  })
 );
 
 /* ------------------------------------------------------------- relatórios */
