@@ -7,7 +7,8 @@ import { extrairChave, interpretarChave, validarChave, formatarCnpj } from './do
 import {
   CadeiaDeProvedores,
   ProvedorCatalogoLocal,
-  ProvedorSefaz
+  ProvedorSefaz,
+  ProvedorXmlAutorizado
 } from './domain/nfe/provedores.js';
 import {
   importarNota,
@@ -18,10 +19,12 @@ import {
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
+app.use(express.text({ type: ['application/xml', 'text/xml'], limit: '5mb' }));
 
 // Composição das dependências: a SEFAZ é tentada primeiro e, indisponível,
 // a cadeia recai sobre o catálogo local.
 const provedorConsulta = new CadeiaDeProvedores([new ProvedorSefaz(), new ProvedorCatalogoLocal()]);
+const provedorXml = new ProvedorXmlAutorizado();
 
 const rota = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
 
@@ -71,6 +74,23 @@ app.post(
       chaveInterpretada: interpretarChave(chave),
       nota: obterNota(req.usuarioId, notaId)
     });
+  })
+);
+
+app.post(
+  '/api/notas/xml',
+  exigirAutenticacao,
+  rota(async (req, res) => {
+    const conteudo = typeof req.body === 'string' ? req.body : req.body?.xml;
+    if (!conteudo) return res.status(422).json({ erro: 'Envie o XML de autorização da nota.' });
+
+    const nota = await provedorXml.consultarPorXml(conteudo);
+    if (!validarChave(nota.chave)) {
+      return res.status(422).json({ erro: 'A chave contida no XML é inválida.' });
+    }
+
+    const notaId = importarNota(req.usuarioId, nota);
+    res.status(201).json({ notaId, nota: obterNota(req.usuarioId, notaId) });
   })
 );
 

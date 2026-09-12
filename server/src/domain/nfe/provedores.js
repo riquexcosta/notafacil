@@ -1,4 +1,5 @@
-import { interpretarChave } from '../chaveAcesso.js';
+import { XMLParser } from 'fast-xml-parser';
+import { interpretarChave, somenteDigitos } from '../chaveAcesso.js';
 import { CATALOGO_DEMONSTRACAO } from './catalogoDemonstracao.js';
 
 /**
@@ -10,6 +11,83 @@ import { CATALOGO_DEMONSTRACAO } from './catalogoDemonstracao.js';
  * (XML autorizado, web service da SEFAZ, catálogo local) são intercambiáveis,
  * o que permite trocar a fonte dos dados sem alterar os casos de uso.
  */
+
+const parser = new XMLParser({
+  ignoreAttributes: false,
+  attributeNamePrefix: '@_',
+  parseTagValue: false,
+  trimValues: true
+});
+
+const numero = (v) => (v === undefined || v === null || v === '' ? 0 : Number(v));
+const lista = (v) => (Array.isArray(v) ? v : v ? [v] : []);
+
+/** Normaliza um GTIN: a SEFAZ usa "SEM GTIN" quando o produto não possui código. */
+function normalizarEan(valor) {
+  const d = somenteDigitos(valor);
+  return d.length >= 8 ? d : null;
+}
+
+/**
+ * ProvedorXmlAutorizado — lê o XML de autorização da NF-e/NFC-e.
+ * É o caminho de maior fidelidade: os dados vêm do próprio documento fiscal.
+ */
+export class ProvedorXmlAutorizado {
+  get nome() {
+    return 'xml';
+  }
+
+  async consultarPorXml(conteudoXml) {
+    const raiz = parser.parse(conteudoXml);
+    const nfeProc = raiz.nfeProc ?? raiz;
+    const nfe = nfeProc.NFe ?? nfeProc.nfe;
+    if (!nfe) throw new Error('XML não contém um elemento <NFe>.');
+
+    const inf = nfe.infNFe ?? nfe.infnfe;
+    const ide = inf.ide ?? {};
+    const emit = inf.emit ?? {};
+    const ender = emit.enderEmit ?? {};
+    const total = inf.total?.ICMSTot ?? {};
+
+    const chave = somenteDigitos(inf['@_Id'] ?? '');
+
+    const itens = lista(inf.det).map((det) => {
+      const prod = det.prod ?? {};
+      const valorTotal = numero(prod.vProd);
+      const quantidade = numero(prod.qCom) || 1;
+      return {
+        ean: normalizarEan(prod.cEAN ?? prod.cEANTrib),
+        ncm: prod.NCM ? String(prod.NCM) : null,
+        descricao: String(prod.xProd ?? 'Produto sem descrição'),
+        unidade: prod.uCom ? String(prod.uCom) : 'UN',
+        quantidade,
+        valorUnitario: numero(prod.vUnCom) || valorTotal / quantidade,
+        valorTotal,
+        valorTributos: numero(det.imposto?.vTotTrib)
+      };
+    });
+
+    return {
+      chave,
+      numero: String(ide.nNF ?? ''),
+      serie: String(ide.serie ?? ''),
+      modelo: String(ide.mod ?? ''),
+      dataEmissao: String(ide.dhEmi ?? ide.dEmi ?? '').slice(0, 10),
+      valorTotal: numero(total.vNF),
+      valorTributos: numero(total.vTotTrib),
+      emitente: {
+        cnpj: somenteDigitos(emit.CNPJ),
+        razaoSocial: String(emit.xNome ?? 'Emitente não identificado'),
+        nomeFantasia: emit.xFant ? String(emit.xFant) : null,
+        logradouro: [ender.xLgr, ender.nro].filter(Boolean).join(', ') || null,
+        municipio: ender.xMun ? String(ender.xMun) : null,
+        uf: ender.UF ? String(ender.UF) : null
+      },
+      origem: 'xml',
+      itens
+    };
+  }
+}
 
 /**
  * ProvedorSefaz — adaptador previsto para o web service de distribuição de
