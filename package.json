@@ -1,0 +1,19 @@
+{
+  "name": "notafacil",
+  "version": "1.0.0",
+  "description": "Controle de notas fiscais eletrônicas e comparação do histórico de preços ao consumidor",
+  "main": "index.js",
+  "scripts": {
+    "capturas": "node capturas/capturar.mjs",
+    "recortes": "node capturas/recortes.mjs",
+    "diagramas": "node capturas/gerar-diagramas.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "docx": "^9.7.1",
+    "playwright": "^1.63.0"
+  },
+  "private": true
+}
