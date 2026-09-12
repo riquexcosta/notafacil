@@ -6,6 +6,7 @@ const ITENS = [
   { rota: '/leitura', rotulo: 'Ler nota fiscal', icone: '▣' },
   { rota: '/notas', rotulo: 'Histórico de notas', icone: '☰' },
   { rota: '/produtos', rotulo: 'Produtos', icone: '◇' },
+  { rota: '/empresas', rotulo: 'Estabelecimentos', icone: '⌂' }
 ];
 
 export default function Layout() {

@@ -144,3 +144,18 @@ export function buscarProdutos(usuarioId, { ean, ncm, termo } = {}) {
     )
     .all(...parametros);
 }
+
+/** Preços mais recentes praticados por um estabelecimento. */
+export function produtosPorEmpresa(empresaId) {
+  return db
+    .prepare(
+      `SELECT p.id, p.descricao, p.ean, p.ncm, p.unidade,
+              pep.valor_unitario  AS valorUnitario,
+              pep.data_referencia AS dataReferencia
+         FROM preco_empresa_produto pep
+         JOIN produto p ON p.id = pep.produto_id
+        WHERE pep.empresa_id = ?
+        ORDER BY pep.data_referencia DESC, p.descricao ASC`
+    )
+    .all(empresaId);
+}

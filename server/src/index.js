@@ -14,6 +14,7 @@ import {
 import {
   compararComHistorico,
   importarNota,
+  listarEmpresas,
   listarNotas,
   obterNota,
   resumoDoUsuario
@@ -21,6 +22,7 @@ import {
 import {
   buscarProdutos,
   historicoDoProduto,
+  produtosPorEmpresa,
   produtosRecorrentes
 } from './services/produtoService.js';
 
@@ -180,6 +182,20 @@ app.get(
         : null
     });
   })
+);
+
+/* --------------------------------------------------------------- empresas */
+
+app.get(
+  '/api/empresas',
+  exigirAutenticacao,
+  rota((req, res) => res.json(listarEmpresas(req.usuarioId)))
+);
+
+app.get(
+  '/api/empresas/:id/produtos',
+  exigirAutenticacao,
+  rota((req, res) => res.json(produtosPorEmpresa(Number(req.params.id))))
 );
 
 /* ------------------------------------------------------------- relatórios */

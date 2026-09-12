@@ -2,6 +2,7 @@ import { Navigate, Route, Routes } from 'react-router-dom';
 import Layout from './componentes/Layout.jsx';
 import DetalheNota from './paginas/DetalheNota.jsx';
 import DetalheProduto from './paginas/DetalheProduto.jsx';
+import Empresas from './paginas/Empresas.jsx';
 import Entrar from './paginas/Entrar.jsx';
 import Leitura from './paginas/Leitura.jsx';
 import Notas from './paginas/Notas.jsx';
@@ -30,6 +31,7 @@ export default function App() {
         <Route path="/notas/:id" element={<DetalheNota />} />
         <Route path="/produtos" element={<Produtos />} />
         <Route path="/produtos/:id" element={<DetalheProduto />} />
+        <Route path="/empresas" element={<Empresas />} />
       </Route>
       <Route path="*" element={<Navigate to="/painel" replace />} />
     </Routes>

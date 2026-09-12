@@ -58,6 +58,9 @@ export const api = {
   produtosRecorrentes: () => requisitar('/produtos/recorrentes'),
   historicoProduto: (id) => requisitar(`/produtos/${id}/historico`),
 
+  listarEmpresas: () => requisitar('/empresas'),
+  produtosDaEmpresa: (id) => requisitar(`/empresas/${id}/produtos`),
+
   resumo: () => requisitar('/relatorios/resumo')
 };
 

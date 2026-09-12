@@ -264,4 +264,21 @@ export function resumoDoUsuario(usuarioId) {
   };
 }
 
+export function listarEmpresas(usuarioId) {
+  return db
+    .prepare(
+      `SELECT e.id, e.cnpj, e.razao_social AS razaoSocial, e.nome_fantasia AS nomeFantasia,
+              e.municipio, e.uf,
+              COUNT(n.id)                    AS totalNotas,
+              ROUND(SUM(n.valor_total), 2)   AS totalGasto,
+              MAX(n.data_emissao)            AS ultimaCompra
+         FROM empresa e
+         JOIN nota_fiscal n ON n.empresa_id = e.id
+        WHERE n.usuario_id = ?
+        GROUP BY e.id
+        ORDER BY totalGasto DESC`
+    )
+    .all(usuarioId);
+}
+
 export { historicoDoProduto };
