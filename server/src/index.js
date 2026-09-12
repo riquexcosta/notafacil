@@ -3,6 +3,11 @@ import cors from 'cors';
 import { z } from 'zod';
 
 import { entrar, exigirAutenticacao, registrar } from './auth.js';
+import { formatarCnpj } from './domain/chaveAcesso.js';
+import {
+  listarNotas,
+  obterNota
+} from './services/notaService.js';
 
 const app = express();
 app.use(cors());
@@ -30,6 +35,24 @@ app.post(
   rota((req, res) =>
     res.json(entrar(z.object({ email: z.string().email(), senha: z.string() }).parse(req.body)))
   )
+);
+
+/* ------------------------------------------------------------------ notas */
+
+app.get(
+  '/api/notas',
+  exigirAutenticacao,
+  rota((req, res) => res.json(listarNotas(req.usuarioId, req.query)))
+);
+
+app.get(
+  '/api/notas/:id',
+  exigirAutenticacao,
+  rota((req, res) => {
+    const nota = obterNota(req.usuarioId, Number(req.params.id));
+    if (!nota) return res.status(404).json({ erro: 'Nota não encontrada.' });
+    res.json({ ...nota, cnpjFormatado: formatarCnpj(nota.cnpj) });
+  })
 );
 
 /* ----------------------------------------------------- tratamento de erro */
