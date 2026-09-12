@@ -40,6 +40,11 @@ export const api = {
     requisitar('/auth/cadastro', { method: 'POST', body: JSON.stringify(dados) }),
   entrar: (dados) => requisitar('/auth/login', { method: 'POST', body: JSON.stringify(dados) }),
 
+  lerQrCode: (conteudo) =>
+    requisitar('/notas/qrcode', { method: 'POST', body: JSON.stringify({ conteudo }) }),
+  enviarXml: (xml) =>
+    requisitar('/notas/xml', { method: 'POST', headers: { 'Content-Type': 'application/xml' }, body: xml }),
+
   produtosRecorrentes: () => requisitar('/produtos/recorrentes'),
 
   resumo: () => requisitar('/relatorios/resumo')

@@ -3,6 +3,7 @@ import { encerrarSessao, lerSessao } from '../servicos/api.js';
 
 const ITENS = [
   { rota: '/painel', rotulo: 'Painel', icone: '◧' },
+  { rota: '/leitura', rotulo: 'Ler nota fiscal', icone: '▣' },
 ];
 
 export default function Layout() {
