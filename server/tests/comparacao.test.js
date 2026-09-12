@@ -10,7 +10,9 @@ process.env.DB_PATH = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'notafacil
 const { db } = await import('../src/db/index.js');
 const { calcularDigitoVerificador } = await import('../src/domain/chaveAcesso.js');
 const { importarNota, obterNota } = await import('../src/services/notaService.js');
-const { normalizarDescricao } = await import('../src/services/produtoService.js');
+const { produtosRecorrentes, normalizarDescricao } = await import(
+  '../src/services/produtoService.js'
+);
 const { ProvedorXmlAutorizado } = await import('../src/domain/nfe/provedores.js');
 
 const CNPJ = '07526557000100';
@@ -96,6 +98,14 @@ test('variação de até 1% é tratada como estável', () => {
 
 test('recusa a mesma chave de acesso duas vezes', () => {
   assert.throws(() => importarNota(usuarioId, nota(1, '2026-03-10', 5.0)), /já consta/i);
+});
+
+test('o produto é reconhecido pelo EAN em todas as notas', () => {
+  const recorrentes = produtosRecorrentes(usuarioId);
+  assert.equal(recorrentes.length, 1);
+  assert.equal(recorrentes[0].ocorrencias, 4);
+  assert.equal(recorrentes[0].menorPreco, 4.5);
+  assert.equal(recorrentes[0].maiorPreco, 6.0);
 });
 
 test('normaliza descrições para comparação quando não há EAN', () => {

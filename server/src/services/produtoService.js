@@ -60,3 +60,32 @@ export function resolverEmpresa(emitente) {
     );
   return Number(info.lastInsertRowid);
 }
+
+/** Produtos que aparecem em duas ou mais notas do usuário. */
+export function produtosRecorrentes(usuarioId, minimoOcorrencias = 2) {
+  return db
+    .prepare(
+      `SELECT p.id, p.descricao, p.ean, p.ncm, p.unidade,
+              COUNT(DISTINCT n.id)     AS ocorrencias,
+              MIN(i.valor_unitario)    AS menorPreco,
+              MAX(i.valor_unitario)    AS maiorPreco,
+              ROUND(AVG(i.valor_unitario), 2) AS precoMedio,
+              ROUND(SUM(i.valor_total), 2)    AS totalGasto,
+              MAX(n.data_emissao)      AS ultimaCompra
+         FROM item_nota i
+         JOIN nota_fiscal n ON n.id = i.nota_id
+         JOIN produto p     ON p.id = i.produto_id
+        WHERE n.usuario_id = ?
+        GROUP BY p.id
+       HAVING ocorrencias >= ?
+        ORDER BY ocorrencias DESC, totalGasto DESC`
+    )
+    .all(usuarioId, minimoOcorrencias)
+    .map((linha) => ({
+      ...linha,
+      variacaoPercentual:
+        linha.menorPreco > 0
+          ? Number((((linha.maiorPreco - linha.menorPreco) / linha.menorPreco) * 100).toFixed(1))
+          : 0
+    }));
+}

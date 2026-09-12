@@ -16,6 +16,7 @@ import {
   listarNotas,
   obterNota
 } from './services/notaService.js';
+import { produtosRecorrentes } from './services/produtoService.js';
 
 const app = express();
 app.use(cors());
@@ -115,6 +116,16 @@ app.get(
   '/api/notas/:id/comparacao',
   exigirAutenticacao,
   rota((req, res) => res.json(compararComHistorico(req.usuarioId, Number(req.params.id))))
+);
+
+/* --------------------------------------------------------------- produtos */
+
+app.get(
+  '/api/produtos/recorrentes',
+  exigirAutenticacao,
+  rota((req, res) =>
+    res.json(produtosRecorrentes(req.usuarioId, Number(req.query.minimo ?? 2)))
+  )
 );
 
 /* ----------------------------------------------------- tratamento de erro */
