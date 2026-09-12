@@ -35,6 +35,12 @@ async function requisitar(caminho, opcoes = {}) {
   return dados;
 }
 
+const comQuery = (caminho, params = {}) => {
+  const limpos = Object.entries(params).filter(([, v]) => v !== undefined && v !== null && v !== '');
+  const query = new URLSearchParams(limpos).toString();
+  return query ? `${caminho}?${query}` : caminho;
+};
+
 export const api = {
   cadastrar: (dados) =>
     requisitar('/auth/cadastro', { method: 'POST', body: JSON.stringify(dados) }),
@@ -44,6 +50,9 @@ export const api = {
     requisitar('/notas/qrcode', { method: 'POST', body: JSON.stringify({ conteudo }) }),
   enviarXml: (xml) =>
     requisitar('/notas/xml', { method: 'POST', headers: { 'Content-Type': 'application/xml' }, body: xml }),
+
+  listarNotas: (filtros) => requisitar(comQuery('/notas', filtros)),
+  obterNota: (id) => requisitar(`/notas/${id}`),
 
   produtosRecorrentes: () => requisitar('/produtos/recorrentes'),
 
