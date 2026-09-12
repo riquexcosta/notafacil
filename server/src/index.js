@@ -3,8 +3,14 @@ import cors from 'cors';
 import { z } from 'zod';
 
 import { entrar, exigirAutenticacao, registrar } from './auth.js';
-import { formatarCnpj } from './domain/chaveAcesso.js';
+import { extrairChave, interpretarChave, validarChave, formatarCnpj } from './domain/chaveAcesso.js';
 import {
+  CadeiaDeProvedores,
+  ProvedorCatalogoLocal,
+  ProvedorSefaz
+} from './domain/nfe/provedores.js';
+import {
+  importarNota,
   listarNotas,
   obterNota
 } from './services/notaService.js';
@@ -12,6 +18,10 @@ import {
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '5mb' }));
+
+// Composição das dependências: a SEFAZ é tentada primeiro e, indisponível,
+// a cadeia recai sobre o catálogo local.
+const provedorConsulta = new CadeiaDeProvedores([new ProvedorSefaz(), new ProvedorCatalogoLocal()]);
 
 const rota = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
 
@@ -38,6 +48,31 @@ app.post(
 );
 
 /* ------------------------------------------------------------------ notas */
+
+app.post(
+  '/api/notas/qrcode',
+  exigirAutenticacao,
+  rota(async (req, res) => {
+    const { conteudo } = z.object({ conteudo: z.string().min(1) }).parse(req.body);
+
+    const chave = extrairChave(conteudo);
+    if (!chave) {
+      return res.status(422).json({ erro: 'Não foi possível localizar uma chave de acesso no conteúdo lido.' });
+    }
+    if (!validarChave(chave)) {
+      return res.status(422).json({ erro: 'Chave de acesso inválida: o dígito verificador não confere.' });
+    }
+
+    const nota = await provedorConsulta.consultar(chave);
+    const notaId = importarNota(req.usuarioId, nota);
+
+    res.status(201).json({
+      notaId,
+      chaveInterpretada: interpretarChave(chave),
+      nota: obterNota(req.usuarioId, notaId)
+    });
+  })
+);
 
 app.get(
   '/api/notas',
