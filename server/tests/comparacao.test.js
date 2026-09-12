@@ -9,7 +9,7 @@ process.env.DB_PATH = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'notafacil
 
 const { db } = await import('../src/db/index.js');
 const { calcularDigitoVerificador } = await import('../src/domain/chaveAcesso.js');
-const { importarNota } = await import('../src/services/notaService.js');
+const { importarNota, obterNota } = await import('../src/services/notaService.js');
 const { normalizarDescricao } = await import('../src/services/produtoService.js');
 const { ProvedorXmlAutorizado } = await import('../src/domain/nfe/provedores.js');
 
@@ -64,8 +64,37 @@ before(() => {
   );
 });
 
+test('primeira compra de um produto é marcada como nova', () => {
+  const id = importarNota(usuarioId, nota(1, '2026-03-10', 5.0));
+  const [item] = obterNota(usuarioId, id).itens;
+  assert.equal(item.situacao, 'novo');
+  assert.equal(item.comparacoes, 0);
+});
+
+test('identifica aumento de preço em relação à compra anterior', () => {
+  const id = importarNota(usuarioId, nota(2, '2026-04-10', 6.0));
+  const [item] = obterNota(usuarioId, id).itens;
+  assert.equal(item.situacao, 'aumento');
+  assert.equal(item.precoAnterior, 5.0);
+  assert.equal(item.variacaoPercentual, 20);
+});
+
+test('identifica redução de preço e calcula a economia possível', () => {
+  const id = importarNota(usuarioId, nota(3, '2026-05-10', 4.5));
+  const [item] = obterNota(usuarioId, id).itens;
+  assert.equal(item.situacao, 'reducao');
+  assert.equal(item.variacaoPercentual, -25);
+  assert.equal(item.menorPreco, 5.0);
+  assert.equal(item.economiaPossivel, 0); // já é o menor preço da série
+});
+
+test('variação de até 1% é tratada como estável', () => {
+  const id = importarNota(usuarioId, nota(4, '2026-06-10', 4.52));
+  const [item] = obterNota(usuarioId, id).itens;
+  assert.equal(item.situacao, 'estavel');
+});
+
 test('recusa a mesma chave de acesso duas vezes', () => {
-  importarNota(usuarioId, nota(1, '2026-03-10', 5.0));
   assert.throws(() => importarNota(usuarioId, nota(1, '2026-03-10', 5.0)), /já consta/i);
 });
 

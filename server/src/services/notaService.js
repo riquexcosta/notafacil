@@ -2,6 +2,69 @@ import { db } from '../db/index.js';
 import { resolverEmpresa, resolverProduto } from './produtoService.js';
 
 /**
+ * Compara cada item de uma nota recém-importada com o histórico de compras do
+ * usuário, desconsiderando a própria nota. Para cada item devolve o último
+ * preço pago, o menor preço já registrado e a variação percentual.
+ */
+export function compararComHistorico(usuarioId, notaId) {
+  const itens = db
+    .prepare(
+      `SELECT i.id, i.produto_id AS produtoId, i.quantidade, i.valor_unitario AS valorUnitario,
+              i.valor_total AS valorTotal, p.descricao, p.ean, p.ncm, p.unidade
+         FROM item_nota i
+         JOIN produto p ON p.id = i.produto_id
+        WHERE i.nota_id = ?`
+    )
+    .all(notaId);
+
+  const consultaHistorico = db.prepare(
+    `SELECT i.valor_unitario AS valorUnitario,
+            n.data_emissao   AS dataEmissao,
+            e.nome_fantasia  AS empresa
+       FROM item_nota i
+       JOIN nota_fiscal n ON n.id = i.nota_id
+       JOIN empresa e     ON e.id = n.empresa_id
+      WHERE n.usuario_id = ? AND i.produto_id = ? AND n.id <> ?
+      ORDER BY n.data_emissao DESC`
+  );
+
+  return itens.map((item) => {
+    const historico = consultaHistorico.all(usuarioId, item.produtoId, notaId);
+
+    if (historico.length === 0) {
+      return { ...item, situacao: 'novo', comparacoes: 0 };
+    }
+
+    const precos = historico.map((h) => h.valorUnitario);
+    const anterior = historico[0];
+    const menorPreco = Math.min(...precos);
+    const precoMedio = precos.reduce((s, v) => s + v, 0) / precos.length;
+    const variacao = ((item.valorUnitario - anterior.valorUnitario) / anterior.valorUnitario) * 100;
+
+    let situacao = 'estavel';
+    if (variacao > 1) situacao = 'aumento';
+    else if (variacao < -1) situacao = 'reducao';
+
+    return {
+      ...item,
+      situacao,
+      comparacoes: historico.length,
+      precoAnterior: anterior.valorUnitario,
+      empresaAnterior: anterior.empresa,
+      dataAnterior: anterior.dataEmissao,
+      menorPreco,
+      precoMedio: Number(precoMedio.toFixed(2)),
+      variacaoPercentual: Number(variacao.toFixed(1)),
+      // Quanto teria sido economizado pagando o menor preço já registrado.
+      // Zero quando a compra atual já é a mais barata da série.
+      economiaPossivel: Number(
+        Math.max(0, (item.valorUnitario - menorPreco) * item.quantidade).toFixed(2)
+      )
+    };
+  });
+}
+
+/**
  * Persiste uma nota normalizada e devolve a comparação de preços.
  * Toda a gravação ocorre em uma única transação: empresa, produtos, nota,
  * itens e a tabela de preços por estabelecimento.
@@ -132,14 +195,6 @@ export function obterNota(usuarioId, notaId) {
 
   if (!nota) return null;
 
-  nota.itens = db
-    .prepare(
-      `SELECT i.id, i.produto_id AS produtoId, i.quantidade, i.valor_unitario AS valorUnitario,
-              i.valor_total AS valorTotal, p.descricao, p.ean, p.ncm, p.unidade
-         FROM item_nota i
-         JOIN produto p ON p.id = i.produto_id
-        WHERE i.nota_id = ?`
-    )
-    .all(notaId);
+  nota.itens = compararComHistorico(usuarioId, notaId);
   return nota;
 }

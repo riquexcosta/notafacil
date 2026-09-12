@@ -11,6 +11,7 @@ import {
   ProvedorXmlAutorizado
 } from './domain/nfe/provedores.js';
 import {
+  compararComHistorico,
   importarNota,
   listarNotas,
   obterNota
@@ -108,6 +109,12 @@ app.get(
     if (!nota) return res.status(404).json({ erro: 'Nota não encontrada.' });
     res.json({ ...nota, cnpjFormatado: formatarCnpj(nota.cnpj) });
   })
+);
+
+app.get(
+  '/api/notas/:id/comparacao',
+  exigirAutenticacao,
+  rota((req, res) => res.json(compararComHistorico(req.usuarioId, Number(req.params.id))))
 );
 
 /* ----------------------------------------------------- tratamento de erro */
