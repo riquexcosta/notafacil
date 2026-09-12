@@ -1,0 +1,697 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "NotaFácil API",
+    "version": "1.0.0",
+    "description": "API do NotaFácil: registro de notas fiscais eletrônicas de consumo e comparação do histórico de preços do próprio usuário.\n\nO registro ocorre por três caminhos: leitura do QR Code, digitação da chave de acesso e importação do XML autorizado. Quando a consulta automática não está disponível, a API responde 422 com o código `CONSULTA_ASSISTIDA` e o endereço da consulta oficial da SEFAZ.",
+    "license": { "name": "MIT" }
+  },
+  "servers": [{ "url": "http://localhost:3333", "description": "Ambiente local" }],
+  "tags": [
+    { "name": "Autenticação", "description": "Criação de conta e entrada no sistema." },
+    { "name": "Notas", "description": "Registro e consulta de notas fiscais." },
+    { "name": "Produtos", "description": "Busca, recorrência e histórico de preços." },
+    { "name": "Empresas", "description": "Estabelecimentos emitentes." },
+    { "name": "Relatórios", "description": "Indicadores consolidados." },
+    { "name": "Serviço", "description": "Disponibilidade e documentação." }
+  ],
+  "paths": {
+    "/api/saude": {
+      "get": {
+        "tags": ["Serviço"],
+        "summary": "Verifica a disponibilidade da API",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "API no ar",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": { "status": { "type": "string" }, "versao": { "type": "string" } }
+                },
+                "example": { "status": "ok", "versao": "1.0.0" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/docs": {
+      "get": {
+        "tags": ["Serviço"],
+        "summary": "Interface do Swagger UI",
+        "security": [],
+        "responses": { "200": { "description": "Página HTML com a documentação navegável" } }
+      }
+    },
+    "/api/openapi.json": {
+      "get": {
+        "tags": ["Serviço"],
+        "summary": "Especificação OpenAPI desta API",
+        "security": [],
+        "responses": { "200": { "description": "Documento OpenAPI 3.0" } }
+      }
+    },
+    "/api/auth/cadastro": {
+      "post": {
+        "tags": ["Autenticação"],
+        "summary": "Cria uma conta",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["nome", "email", "senha"],
+                "properties": {
+                  "nome": { "type": "string", "minLength": 2 },
+                  "email": { "type": "string", "format": "email" },
+                  "senha": { "type": "string", "minLength": 6 }
+                }
+              },
+              "example": { "nome": "Maria Souza", "email": "maria@exemplo.com", "senha": "segredo123" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Conta criada, já autenticada",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Autenticacao" } } }
+          },
+          "409": { "$ref": "#/components/responses/Conflito" },
+          "422": { "$ref": "#/components/responses/DadosInvalidos" }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": ["Autenticação"],
+        "summary": "Entra no sistema",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "senha"],
+                "properties": {
+                  "email": { "type": "string", "format": "email" },
+                  "senha": { "type": "string" }
+                }
+              },
+              "example": { "email": "demo@notafacil.app", "senha": "demo1234" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Token de sessão, válido por sete dias",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Autenticacao" } } }
+          },
+          "401": { "$ref": "#/components/responses/NaoAutorizado" },
+          "422": { "$ref": "#/components/responses/DadosInvalidos" }
+        }
+      }
+    },
+    "/api/notas/qrcode": {
+      "post": {
+        "tags": ["Notas"],
+        "summary": "Registra uma nota pelo QR Code ou pela chave de acesso",
+        "description": "Aceita os 44 dígitos da chave, a chave com separadores ou a URL completa gravada no QR Code. A chave é validada pelo módulo 11 antes de qualquer consulta, e a duplicidade é verificada antes da consulta paga.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["conteudo"],
+                "properties": { "conteudo": { "type": "string", "description": "Chave de acesso ou conteúdo lido do QR Code." } }
+              },
+              "example": { "conteudo": "25260307526557000100650010000010011101371370" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Nota registrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "notaId": { "type": "integer" },
+                    "chaveInterpretada": { "$ref": "#/components/schemas/ChaveInterpretada" },
+                    "nota": { "$ref": "#/components/schemas/NotaDetalhe" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/NaoAutorizado" },
+          "409": { "$ref": "#/components/responses/Conflito" },
+          "422": {
+            "description": "Chave inválida, nota cancelada ou consulta automática indisponível",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/Erro" },
+                "examples": {
+                  "chaveInvalida": {
+                    "summary": "Dígito verificador não confere",
+                    "value": { "erro": "Chave de acesso inválida: o dígito verificador não confere." }
+                  },
+                  "consultaAssistida": {
+                    "summary": "Portal exige verificação humana",
+                    "value": {
+                      "erro": "A consulta automática não está disponível: o portal da SEFAZ-PB exige verificação humana. Consulte a nota no portal oficial e importe o XML autorizado.",
+                      "codigo": "CONSULTA_ASSISTIDA",
+                      "urlConsulta": "https://www.sefaz.pb.gov.br/nfce?p=25260307526557000100650010000010011101371370"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/notas/xml": {
+      "post": {
+        "tags": ["Notas"],
+        "summary": "Registra uma nota a partir do XML autorizado",
+        "description": "O XML pode ser enviado como corpo `application/xml` ou dentro do campo `xml` de um JSON.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/xml": { "schema": { "type": "string" } },
+            "application/json": {
+              "schema": { "type": "object", "properties": { "xml": { "type": "string" } } }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Nota registrada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "notaId": { "type": "integer" },
+                    "nota": { "$ref": "#/components/schemas/NotaDetalhe" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/NaoAutorizado" },
+          "409": { "$ref": "#/components/responses/Conflito" },
+          "422": { "$ref": "#/components/responses/DadosInvalidos" }
+        }
+      }
+    },
+    "/api/notas": {
+      "get": {
+        "tags": ["Notas"],
+        "summary": "Lista as notas do usuário",
+        "parameters": [
+          { "name": "chave", "in": "query", "schema": { "type": "string" }, "description": "Trecho da chave de acesso." },
+          { "name": "dataInicio", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "dataFim", "in": "query", "schema": { "type": "string", "format": "date" } },
+          { "name": "empresaId", "in": "query", "schema": { "type": "integer" } },
+          { "name": "busca", "in": "query", "schema": { "type": "string" }, "description": "Razão social, nome fantasia ou CNPJ." }
+        ],
+        "responses": {
+          "200": {
+            "description": "Até 200 notas, da mais recente para a mais antiga",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/NotaResumo" } }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/NaoAutorizado" }
+        }
+      }
+    },
+    "/api/notas/{id}": {
+      "get": {
+        "tags": ["Notas"],
+        "summary": "Detalha uma nota com itens e comparação",
+        "parameters": [{ "$ref": "#/components/parameters/Id" }],
+        "responses": {
+          "200": {
+            "description": "Nota encontrada",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/NotaDetalhe" } } }
+          },
+          "401": { "$ref": "#/components/responses/NaoAutorizado" },
+          "404": { "$ref": "#/components/responses/NaoEncontrado" }
+        }
+      }
+    },
+    "/api/notas/{id}/comparacao": {
+      "get": {
+        "tags": ["Notas"],
+        "summary": "Compara os itens da nota com o histórico",
+        "parameters": [{ "$ref": "#/components/parameters/Id" }],
+        "responses": {
+          "200": {
+            "description": "Itens com situação, preço anterior, menor preço e economia possível",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/ItemComparado" } }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/NaoAutorizado" }
+        }
+      }
+    },
+    "/api/produtos": {
+      "get": {
+        "tags": ["Produtos"],
+        "summary": "Busca produtos já comprados",
+        "parameters": [
+          { "name": "termo", "in": "query", "schema": { "type": "string" }, "description": "Trecho da descrição." },
+          { "name": "ean", "in": "query", "schema": { "type": "string" }, "description": "Código de barras." },
+          { "name": "ncm", "in": "query", "schema": { "type": "string" }, "description": "Classificação fiscal." }
+        ],
+        "responses": {
+          "200": {
+            "description": "Produtos com preço médio, menor e maior preço",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Produto" } }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/NaoAutorizado" }
+        }
+      }
+    },
+    "/api/produtos/recorrentes": {
+      "get": {
+        "tags": ["Produtos"],
+        "summary": "Lista os produtos comprados mais de uma vez",
+        "parameters": [
+          {
+            "name": "minimo",
+            "in": "query",
+            "schema": { "type": "integer", "default": 2 },
+            "description": "Número mínimo de notas em que o produto aparece."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Produtos recorrentes, com variação percentual entre o menor e o maior preço",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/ProdutoRecorrente" } }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/NaoAutorizado" }
+        }
+      }
+    },
+    "/api/produtos/{id}/historico": {
+      "get": {
+        "tags": ["Produtos"],
+        "summary": "Série histórica de preço de um produto",
+        "parameters": [{ "$ref": "#/components/parameters/Id" }],
+        "responses": {
+          "200": {
+            "description": "Histórico de compras, ofertas por estabelecimento e estatísticas",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HistoricoProduto" } } }
+          },
+          "401": { "$ref": "#/components/responses/NaoAutorizado" },
+          "404": { "$ref": "#/components/responses/NaoEncontrado" }
+        }
+      }
+    },
+    "/api/empresas": {
+      "get": {
+        "tags": ["Empresas"],
+        "summary": "Lista os estabelecimentos onde o usuário comprou",
+        "responses": {
+          "200": {
+            "description": "Estabelecimentos ordenados por total gasto",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Empresa" } }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/NaoAutorizado" }
+        }
+      }
+    },
+    "/api/empresas/{id}/produtos": {
+      "get": {
+        "tags": ["Empresas"],
+        "summary": "Produtos com preço registrado em um estabelecimento",
+        "parameters": [{ "$ref": "#/components/parameters/Id" }],
+        "responses": {
+          "200": {
+            "description": "Produtos com o preço mais recente da loja",
+            "content": {
+              "application/json": {
+                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/ProdutoDaEmpresa" } }
+              }
+            }
+          },
+          "401": { "$ref": "#/components/responses/NaoAutorizado" }
+        }
+      }
+    },
+    "/api/relatorios/resumo": {
+      "get": {
+        "tags": ["Relatórios"],
+        "summary": "Indicadores consolidados do usuário",
+        "responses": {
+          "200": {
+            "description": "Totais, gasto por mês e produtos de maior variação",
+            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Resumo" } } }
+          },
+          "401": { "$ref": "#/components/responses/NaoAutorizado" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Token devolvido por /api/auth/login ou /api/auth/cadastro."
+      }
+    },
+    "parameters": {
+      "Id": { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+    },
+    "responses": {
+      "NaoAutorizado": {
+        "description": "Token ausente, inválido ou expirado",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Erro" },
+            "example": { "erro": "Autenticação obrigatória." }
+          }
+        }
+      },
+      "NaoEncontrado": {
+        "description": "Registro não encontrado",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Erro" },
+            "example": { "erro": "Nota não encontrada." }
+          }
+        }
+      },
+      "Conflito": {
+        "description": "Registro já existente",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Erro" },
+            "example": { "erro": "Esta nota fiscal já consta no seu histórico." }
+          }
+        }
+      },
+      "DadosInvalidos": {
+        "description": "Dados de entrada inválidos",
+        "content": {
+          "application/json": {
+            "schema": { "$ref": "#/components/schemas/Erro" },
+            "example": { "erro": "A senha deve ter ao menos 6 caracteres." }
+          }
+        }
+      }
+    },
+    "schemas": {
+      "Erro": {
+        "type": "object",
+        "properties": {
+          "erro": { "type": "string" },
+          "codigo": {
+            "type": "string",
+            "description": "Presente em falhas previstas. `CONSULTA_ASSISTIDA` indica que o usuário deve consultar o portal oficial e importar o XML."
+          },
+          "urlConsulta": {
+            "type": "string",
+            "nullable": true,
+            "description": "Endereço da consulta oficial da SEFAZ, quando há um para a unidade federativa da nota."
+          }
+        },
+        "required": ["erro"]
+      },
+      "Usuario": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "nome": { "type": "string" },
+          "email": { "type": "string", "format": "email" }
+        }
+      },
+      "Autenticacao": {
+        "type": "object",
+        "properties": {
+          "token": { "type": "string", "description": "JWT válido por sete dias." },
+          "usuario": { "$ref": "#/components/schemas/Usuario" }
+        }
+      },
+      "ChaveInterpretada": {
+        "type": "object",
+        "description": "Campos decompostos da chave de acesso, conforme o Manual de Orientação do Contribuinte.",
+        "properties": {
+          "chave": { "type": "string" },
+          "cUF": { "type": "string" },
+          "uf": { "type": "string", "nullable": true },
+          "anoMesEmissao": { "type": "string", "example": "2026-03" },
+          "cnpjEmitente": { "type": "string" },
+          "modelo": { "type": "string", "example": "65" },
+          "descricaoModelo": { "type": "string", "example": "NFC-e" },
+          "serie": { "type": "string" },
+          "numero": { "type": "string" },
+          "tipoEmissao": { "type": "string" },
+          "codigoNumerico": { "type": "string" },
+          "digitoVerificador": { "type": "string" }
+        }
+      },
+      "NotaResumo": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "chave": { "type": "string" },
+          "numero": { "type": "string" },
+          "serie": { "type": "string" },
+          "modelo": { "type": "string" },
+          "dataEmissao": { "type": "string", "format": "date" },
+          "valorTotal": { "type": "number" },
+          "valorTributos": { "type": "number" },
+          "origem": {
+            "type": "string",
+            "enum": ["qrcode", "infosimples", "xml", "demo", "manual"],
+            "description": "Como a nota entrou no sistema."
+          },
+          "empresaId": { "type": "integer" },
+          "razaoSocial": { "type": "string" },
+          "nomeFantasia": { "type": "string", "nullable": true },
+          "cnpj": { "type": "string" },
+          "municipio": { "type": "string", "nullable": true },
+          "uf": { "type": "string", "nullable": true },
+          "totalItens": { "type": "integer" }
+        }
+      },
+      "NotaDetalhe": {
+        "allOf": [
+          { "$ref": "#/components/schemas/NotaResumo" },
+          {
+            "type": "object",
+            "properties": {
+              "logradouro": { "type": "string", "nullable": true },
+              "cnpjFormatado": { "type": "string", "example": "07.526.557/0001-00" },
+              "itens": { "type": "array", "items": { "$ref": "#/components/schemas/ItemComparado" } }
+            }
+          }
+        ]
+      },
+      "ItemComparado": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "produtoId": { "type": "integer" },
+          "descricao": { "type": "string" },
+          "ean": { "type": "string", "nullable": true },
+          "ncm": { "type": "string", "nullable": true },
+          "unidade": { "type": "string", "nullable": true },
+          "quantidade": { "type": "number" },
+          "valorUnitario": { "type": "number" },
+          "valorTotal": { "type": "number" },
+          "situacao": {
+            "type": "string",
+            "enum": ["novo", "aumento", "reducao", "estavel"],
+            "description": "Aumento acima de 1%, redução abaixo de -1%, estável entre esses limites."
+          },
+          "comparacoes": { "type": "integer", "description": "Quantidade de compras anteriores do mesmo produto." },
+          "precoAnterior": { "type": "number", "description": "Ausente quando a situação é `novo`." },
+          "empresaAnterior": { "type": "string", "nullable": true },
+          "dataAnterior": { "type": "string", "format": "date" },
+          "menorPreco": { "type": "number" },
+          "precoMedio": { "type": "number" },
+          "variacaoPercentual": { "type": "number" },
+          "economiaPossivel": { "type": "number", "description": "Quanto a compra custaria a menos pelo menor preço já pago." }
+        }
+      },
+      "Produto": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "descricao": { "type": "string" },
+          "ean": { "type": "string", "nullable": true },
+          "ncm": { "type": "string", "nullable": true },
+          "unidade": { "type": "string", "nullable": true },
+          "ocorrencias": { "type": "integer" },
+          "precoMedio": { "type": "number" },
+          "menorPreco": { "type": "number" },
+          "maiorPreco": { "type": "number" },
+          "ultimaCompra": { "type": "string", "format": "date" }
+        }
+      },
+      "ProdutoRecorrente": {
+        "allOf": [
+          { "$ref": "#/components/schemas/Produto" },
+          {
+            "type": "object",
+            "properties": {
+              "totalGasto": { "type": "number" },
+              "variacaoPercentual": { "type": "number" }
+            }
+          }
+        ]
+      },
+      "ProdutoDaEmpresa": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "descricao": { "type": "string" },
+          "ean": { "type": "string", "nullable": true },
+          "ncm": { "type": "string", "nullable": true },
+          "unidade": { "type": "string", "nullable": true },
+          "valorUnitario": { "type": "number" },
+          "dataReferencia": { "type": "string", "format": "date" }
+        }
+      },
+      "HistoricoProduto": {
+        "type": "object",
+        "properties": {
+          "produto": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "integer" },
+              "descricao": { "type": "string" },
+              "ean": { "type": "string", "nullable": true },
+              "ncm": { "type": "string", "nullable": true },
+              "unidade": { "type": "string", "nullable": true }
+            }
+          },
+          "historico": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "dataEmissao": { "type": "string", "format": "date" },
+                "chave": { "type": "string" },
+                "empresa": { "type": "string", "nullable": true },
+                "cnpj": { "type": "string" },
+                "valorUnitario": { "type": "number" },
+                "quantidade": { "type": "number" }
+              }
+            }
+          },
+          "ofertas": {
+            "type": "array",
+            "description": "Preço mais recente do produto em cada estabelecimento, do menor para o maior.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "integer" },
+                "empresa": { "type": "string", "nullable": true },
+                "razaoSocial": { "type": "string" },
+                "municipio": { "type": "string", "nullable": true },
+                "uf": { "type": "string", "nullable": true },
+                "valorUnitario": { "type": "number" },
+                "dataReferencia": { "type": "string", "format": "date" }
+              }
+            }
+          },
+          "estatisticas": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "compras": { "type": "integer" },
+              "menorPreco": { "type": "number" },
+              "maiorPreco": { "type": "number" },
+              "precoMedio": { "type": "number" },
+              "variacaoPercentual": { "type": "number" }
+            }
+          }
+        }
+      },
+      "Empresa": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "integer" },
+          "cnpj": { "type": "string" },
+          "razaoSocial": { "type": "string" },
+          "nomeFantasia": { "type": "string", "nullable": true },
+          "municipio": { "type": "string", "nullable": true },
+          "uf": { "type": "string", "nullable": true },
+          "totalNotas": { "type": "integer" },
+          "totalGasto": { "type": "number" },
+          "ultimaCompra": { "type": "string", "format": "date" }
+        }
+      },
+      "Resumo": {
+        "type": "object",
+        "properties": {
+          "totalNotas": { "type": "integer" },
+          "totalGasto": { "type": "number" },
+          "totalTributos": { "type": "number" },
+          "primeiraCompra": { "type": "string", "format": "date", "nullable": true },
+          "ultimaCompra": { "type": "string", "format": "date", "nullable": true },
+          "totalEstabelecimentos": { "type": "integer" },
+          "totalProdutos": { "type": "integer" },
+          "gastoPorMes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "mes": { "type": "string", "example": "2026-03" },
+                "total": { "type": "number" }
+              }
+            }
+          },
+          "maioresVariacoes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": { "type": "integer" },
+                "descricao": { "type": "string" },
+                "unidade": { "type": "string", "nullable": true },
+                "menorPreco": { "type": "number" },
+                "maiorPreco": { "type": "number" },
+                "ocorrencias": { "type": "integer" },
+                "variacaoPercentual": { "type": "number" }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "security": [{ "bearerAuth": [] }]
+}

@@ -1,3 +1,4 @@
+import fs from 'node:fs';
 import express from 'express';
 import cors from 'cors';
 import { z } from 'zod';
@@ -54,6 +55,33 @@ const provedorXml = new ProvedorXmlAutorizado();
 const rota = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
 
 app.get('/api/saude', (_req, res) => res.json({ status: 'ok', versao: '1.0.0' }));
+
+/* ----------------------------------------------------------- documentação */
+
+const especificacao = JSON.parse(
+  fs.readFileSync(new URL('./docs/openapi.json', import.meta.url), 'utf8')
+);
+
+// Swagger UI carregado por CDN: documenta a API sem acrescentar dependência.
+const PAGINA_DOCS = `<!doctype html>
+<html lang="pt-br">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NotaFácil API</title>
+    <link rel="stylesheet" href="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui.css" />
+  </head>
+  <body>
+    <div id="swagger"></div>
+    <script src="https://unpkg.com/swagger-ui-dist@5.17.14/swagger-ui-bundle.js"></script>
+    <script>
+      SwaggerUIBundle({ url: './openapi.json', dom_id: '#swagger', docExpansion: 'list' });
+    </script>
+  </body>
+</html>`;
+
+app.get('/api/openapi.json', (_req, res) => res.json(especificacao));
+app.get('/api/docs', (_req, res) => res.type('html').send(PAGINA_DOCS));
 
 /* ----------------------------------------------------------- autenticação */
 
