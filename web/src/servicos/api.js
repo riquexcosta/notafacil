@@ -1,0 +1,63 @@
+const CHAVE_SESSAO = 'notafacil.sessao';
+
+export function lerSessao() {
+  try {
+    return JSON.parse(localStorage.getItem(CHAVE_SESSAO)) ?? null;
+  } catch {
+    return null;
+  }
+}
+
+export function gravarSessao(sessao) {
+  localStorage.setItem(CHAVE_SESSAO, JSON.stringify(sessao));
+}
+
+export function encerrarSessao() {
+  localStorage.removeItem(CHAVE_SESSAO);
+}
+
+async function requisitar(caminho, opcoes = {}) {
+  const sessao = lerSessao();
+  const cabecalhos = { ...(opcoes.headers ?? {}) };
+
+  if (sessao?.token) cabecalhos.Authorization = `Bearer ${sessao.token}`;
+  if (opcoes.body && !cabecalhos['Content-Type']) cabecalhos['Content-Type'] = 'application/json';
+
+  const resposta = await fetch(`/api${caminho}`, { ...opcoes, headers: cabecalhos });
+  const texto = await resposta.text();
+  const dados = texto ? JSON.parse(texto) : null;
+
+  if (!resposta.ok) {
+    const erro = new Error(dados?.erro ?? 'Falha na comunicação com o servidor.');
+    erro.status = resposta.status;
+    throw erro;
+  }
+  return dados;
+}
+
+export const api = {
+  cadastrar: (dados) =>
+    requisitar('/auth/cadastro', { method: 'POST', body: JSON.stringify(dados) }),
+  entrar: (dados) => requisitar('/auth/login', { method: 'POST', body: JSON.stringify(dados) }),
+
+  produtosRecorrentes: () => requisitar('/produtos/recorrentes'),
+
+  resumo: () => requisitar('/relatorios/resumo')
+};
+
+export const moeda = (valor) =>
+  (valor ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+export const dataBr = (iso) => {
+  if (!iso) return '—';
+  const [ano, mes, dia] = iso.slice(0, 10).split('-');
+  return `${dia}/${mes}/${ano}`;
+};
+
+export const mesBr = (iso) => {
+  const nomes = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
+  const [ano, mes] = String(iso).split('-');
+  return `${nomes[Number(mes) - 1]}/${String(ano).slice(2)}`;
+};
+
+export const mascararChave = (chave) => String(chave ?? '').replace(/(.{4})/g, '$1 ').trim();

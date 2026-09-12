@@ -1,0 +1,11 @@
+{
+  "name": "NotaFácil — controle de notas fiscais",
+  "short_name": "NotaFácil",
+  "description": "Histórico de notas fiscais eletrônicas e comparação de preços de produtos.",
+  "start_url": "/painel",
+  "display": "standalone",
+  "background_color": "#f4f7fb",
+  "theme_color": "#10243e",
+  "lang": "pt-BR",
+  "icons": []
+}
