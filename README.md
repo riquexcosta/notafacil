@@ -8,6 +8,10 @@ compras anteriores do mesmo usuário.
 Produto de software desenvolvido como Trabalho de Conclusão de Curso do Bacharelado em
 Engenharia de Software da Unicesumar. Autor: **Henrique Gonsalves Costa**.
 
+**Demonstração online:** https://notafacil.henriquegratidao.com.br, com a conta
+`demo@notafacil.app` e a senha `demo1234`. O cadastro está fechado nessa instalação e a conta de
+demonstração é restaurada todo dia às 4h (horário de Brasília).
+
 ---
 
 ## Sumário
