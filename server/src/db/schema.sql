@@ -2,11 +2,13 @@
 PRAGMA foreign_keys = ON;
 
 CREATE TABLE IF NOT EXISTS usuario (
-  id            INTEGER PRIMARY KEY AUTOINCREMENT,
-  nome          TEXT    NOT NULL,
-  email         TEXT    NOT NULL UNIQUE,
-  senha_hash    TEXT    NOT NULL,
-  criado_em     TEXT    NOT NULL DEFAULT (datetime('now'))
+  id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+  nome                TEXT    NOT NULL,
+  email               TEXT    NOT NULL UNIQUE,
+  senha_hash          TEXT    NOT NULL,
+  politica_versao     TEXT,              -- versão da política de privacidade aceita
+  politica_aceita_em  TEXT,              -- data e hora (ISO 8601) do aceite
+  criado_em           TEXT    NOT NULL DEFAULT (datetime('now'))
 );
 
 CREATE TABLE IF NOT EXISTS empresa (

@@ -13,6 +13,15 @@ import {
   ProvedorSefaz,
   ProvedorXmlAutorizado
 } from './domain/nfe/provedores.js';
+import { POLITICA, VERSAO_POLITICA } from './lgpd/politica.js';
+import { cabecalhosDeSeguranca, criarLimitadorDeLogin, origensPermitidas } from './seguranca.js';
+import {
+  aceitarPolitica,
+  atualizarConta,
+  excluirConta,
+  exportarDados,
+  obterConta
+} from './services/contaService.js';
 import {
   compararComHistorico,
   excluirNota,
@@ -31,7 +40,9 @@ import {
 } from './services/produtoService.js';
 
 const app = express();
-app.use(cors());
+app.disable('x-powered-by');
+app.use(cabecalhosDeSeguranca);
+app.use(cors({ origin: origensPermitidas() }));
 app.use(express.json({ limit: '5mb' }));
 app.use(express.text({ type: ['application/xml', 'text/xml'], limit: '5mb' }));
 
@@ -84,12 +95,23 @@ const PAGINA_DOCS = `<!doctype html>
 app.get('/api/openapi.json', (_req, res) => res.json(especificacao));
 app.get('/api/docs', (_req, res) => res.type('html').send(PAGINA_DOCS));
 
+/* -------------------------------------------------------------- privacidade */
+
+app.get('/api/privacidade', (_req, res) => res.json(POLITICA));
+
 /* ----------------------------------------------------------- autenticação */
 
 const esquemaCadastro = z.object({
-  nome: z.string().min(2, 'Informe seu nome.'),
+  nome: z.string().trim().min(2, 'Informe seu nome.'),
   email: z.string().email('E-mail inválido.'),
-  senha: z.string().min(6, 'A senha deve ter ao menos 6 caracteres.')
+  senha: z.string().min(8, 'A senha deve ter ao menos 8 caracteres.'),
+  aceitePolitica: z.literal(true, { message: 'É preciso aceitar a política de privacidade.' }),
+  consentimentoDadosSensiveis: z.literal(true, {
+    message: 'É preciso consentir com o tratamento de compras que possam revelar dados de saúde.'
+  }),
+  versaoPolitica: z.literal(VERSAO_POLITICA, {
+    message: `A versão vigente da política é ${VERSAO_POLITICA}. Recarregue a página e leia a política atual.`
+  })
 });
 
 app.post(
@@ -97,11 +119,92 @@ app.post(
   rota((req, res) => res.status(201).json(registrar(esquemaCadastro.parse(req.body))))
 );
 
+const limitadorDeLogin = criarLimitadorDeLogin();
+
 app.post(
   '/api/auth/login',
-  rota((req, res) =>
-    res.json(entrar(z.object({ email: z.string().email(), senha: z.string() }).parse(req.body)))
-  )
+  rota((req, res) => {
+    const credenciais = z.object({ email: z.string().email(), senha: z.string() }).parse(req.body);
+    const chave = `${req.ip}|${credenciais.email.toLowerCase()}`;
+
+    const espera = limitadorDeLogin.segundosDeBloqueio(chave);
+    if (espera > 0) {
+      res.set('Retry-After', String(espera));
+      return res
+        .status(429)
+        .json({ erro: `Muitas tentativas de login. Tente novamente em ${Math.ceil(espera / 60)} minuto(s).` });
+    }
+
+    try {
+      const sessao = entrar(credenciais);
+      limitadorDeLogin.limpar(chave);
+      res.json(sessao);
+    } catch (erro) {
+      if (erro.status === 401) limitadorDeLogin.registrarFalha(chave);
+      throw erro;
+    }
+  })
+);
+
+/* ------------------------------------------------------------------ conta */
+
+app.get(
+  '/api/conta',
+  exigirAutenticacao,
+  rota((req, res) => res.json(obterConta(req.usuarioId)))
+);
+
+app.patch(
+  '/api/conta',
+  exigirAutenticacao,
+  rota((req, res) => {
+    const dados = z
+      .object({
+        nome: z.string().trim().min(2, 'Informe seu nome.').optional(),
+        email: z.string().email('E-mail inválido.').optional()
+      })
+      .refine((d) => d.nome || d.email, { message: 'Informe o nome ou o e-mail.' })
+      .parse(req.body);
+    res.json(atualizarConta(req.usuarioId, dados));
+  })
+);
+
+app.delete(
+  '/api/conta',
+  exigirAutenticacao,
+  rota((req, res) => {
+    const { senha } = z.object({ senha: z.string().min(1, 'Informe sua senha.') }).parse(req.body ?? {});
+    if (!excluirConta(req.usuarioId, senha)) {
+      return res.status(403).json({ erro: 'Senha incorreta. A conta não foi excluída.' });
+    }
+    res.status(204).end();
+  })
+);
+
+app.get(
+  '/api/conta/exportacao',
+  exigirAutenticacao,
+  rota((req, res) => {
+    const nome = `notafacil-meus-dados-${new Date().toISOString().slice(0, 10)}.json`;
+    res.set('Content-Disposition', `attachment; filename="${nome}"`);
+    res.json(exportarDados(req.usuarioId));
+  })
+);
+
+app.post(
+  '/api/conta/politica',
+  exigirAutenticacao,
+  rota((req, res) => {
+    const { versao } = z
+      .object({
+        versao: z.string(),
+        consentimentoDadosSensiveis: z.literal(true, {
+          message: 'É preciso consentir com o tratamento de compras que possam revelar dados de saúde.'
+        })
+      })
+      .parse(req.body);
+    res.json(aceitarPolitica(req.usuarioId, versao));
+  })
 );
 
 /* ------------------------------------------------------------------ notas */
@@ -249,7 +352,7 @@ app.use((erro, _req, res, _next) => {
   const status = erro.status ?? 500;
   if (status === 500) console.error(erro);
   res.status(status).json({
-    erro: erro.message ?? 'Erro interno do servidor.',
+    erro: status === 500 ? 'Erro interno do servidor.' : erro.message,
     ...(erro.codigo && { codigo: erro.codigo }),
     ...(erro.urlConsulta !== undefined && { urlConsulta: erro.urlConsulta })
   });

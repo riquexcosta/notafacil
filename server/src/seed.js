@@ -6,6 +6,7 @@ import bcrypt from 'bcryptjs';
 import { db } from './db/index.js';
 import { calcularDigitoVerificador } from './domain/chaveAcesso.js';
 import { CATALOGO_DEMONSTRACAO } from './domain/nfe/catalogoDemonstracao.js';
+import { VERSAO_POLITICA } from './lgpd/politica.js';
 import { importarNota } from './services/notaService.js';
 
 const CODIGO_UF_PB = '25';
@@ -117,9 +118,13 @@ function executar() {
     DELETE FROM usuario;
   `);
 
+  // A conta de demonstração já nasce com a política vigente aceita.
   const usuario = db
-    .prepare('INSERT INTO usuario (nome, email, senha_hash) VALUES (?, ?, ?)')
-    .run('Henrique Gonsalves', 'demo@notafacil.app', bcrypt.hashSync('demo1234', 10));
+    .prepare(
+      `INSERT INTO usuario (nome, email, senha_hash, politica_versao, politica_aceita_em)
+       VALUES (?, ?, ?, ?, ?)`
+    )
+    .run('Henrique Gonsalves', 'demo@notafacil.app', bcrypt.hashSync('demo1234', 10), VERSAO_POLITICA, new Date().toISOString());
   const usuarioId = Number(usuario.lastInsertRowid);
 
   // Seis meses de compras: 3 notas/mês no supermercado e no atacado,

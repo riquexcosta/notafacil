@@ -47,6 +47,8 @@ const separarPrecosPorUsuario = db.transaction(() => {
 
 export function migrate() {
   db.exec(SCHEMA);
+  adicionarColuna('usuario', 'politica_versao', 'TEXT');
+  adicionarColuna('usuario', 'politica_aceita_em', 'TEXT');
   adicionarColuna('nota_fiscal', 'hora_emissao', 'TEXT');
   if (!colunas('preco_empresa_produto').includes('usuario_id')) separarPrecosPorUsuario();
   db.exec(

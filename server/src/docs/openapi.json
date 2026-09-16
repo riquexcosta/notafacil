@@ -110,6 +110,27 @@
         }
       }
     },
+    "/api/privacidade": {
+      "get": {
+        "tags": [
+          "Conta e privacidade"
+        ],
+        "summary": "Política de privacidade vigente",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "Texto versionado da política",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Politica"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/auth/cadastro": {
       "post": {
         "tags": [
@@ -118,7 +139,6 @@
         "summary": "Cria uma conta",
         "security": [],
         "requestBody": {
-          "required": true,
           "content": {
             "application/json": {
               "schema": {
@@ -126,7 +146,10 @@
                 "required": [
                   "nome",
                   "email",
-                  "senha"
+                  "senha",
+                  "aceitePolitica",
+                  "consentimentoDadosSensiveis",
+                  "versaoPolitica"
                 ],
                 "properties": {
                   "nome": {
@@ -139,17 +162,37 @@
                   },
                   "senha": {
                     "type": "string",
-                    "minLength": 6
+                    "minLength": 8
+                  },
+                  "aceitePolitica": {
+                    "type": "boolean",
+                    "enum": [
+                      true
+                    ]
+                  },
+                  "consentimentoDadosSensiveis": {
+                    "type": "boolean",
+                    "enum": [
+                      true
+                    ]
+                  },
+                  "versaoPolitica": {
+                    "type": "string",
+                    "description": "Versão vigente, obtida em /api/privacidade."
                   }
                 }
               },
               "example": {
                 "nome": "Maria Souza",
                 "email": "maria@exemplo.com",
-                "senha": "segredo123"
+                "senha": "segredo123",
+                "aceitePolitica": true,
+                "consentimentoDadosSensiveis": true,
+                "versaoPolitica": "1.0"
               }
             }
-          }
+          },
+          "required": true
         },
         "responses": {
           "201": {
@@ -168,7 +211,8 @@
           "422": {
             "$ref": "#/components/responses/DadosInvalidos"
           }
-        }
+        },
+        "description": "Exige o aceite da política de privacidade vigente e o consentimento específico para compras que possam revelar dados de saúde (art. 11, I, da LGPD). A versão aceita e a data do aceite ficam registradas na conta."
       }
     },
     "/api/auth/login": {
@@ -207,11 +251,227 @@
         },
         "responses": {
           "200": {
-            "description": "Token de sessão, válido por sete dias",
+            "description": "Token de sessão, válido por 24 horas",
             "content": {
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Autenticacao"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NaoAutorizado"
+          },
+          "422": {
+            "$ref": "#/components/responses/DadosInvalidos"
+          },
+          "429": {
+            "description": "Muitas tentativas de login",
+            "headers": {
+              "Retry-After": {
+                "schema": {
+                  "type": "integer"
+                },
+                "description": "Segundos até liberar novas tentativas."
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        },
+        "description": "Depois de 5 tentativas com senha errada para o mesmo e-mail e origem em 15 minutos, novas tentativas são recusadas com 429 até a janela expirar."
+      }
+    },
+    "/api/conta": {
+      "get": {
+        "tags": [
+          "Conta e privacidade"
+        ],
+        "summary": "Dados da conta e situação do aceite da política",
+        "responses": {
+          "200": {
+            "description": "Conta do usuário",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Conta"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NaoAutorizado"
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "Conta e privacidade"
+        ],
+        "summary": "Corrige nome ou e-mail (direito de correção)",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nome": {
+                    "type": "string",
+                    "minLength": 2
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Conta atualizada",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Conta"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NaoAutorizado"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflito"
+          },
+          "422": {
+            "$ref": "#/components/responses/DadosInvalidos"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Conta e privacidade"
+        ],
+        "summary": "Exclui a conta e todos os dados (direito de eliminação)",
+        "description": "Apaga a conta, as notas, os itens e os preços do usuário. Produtos e estabelecimentos que não constem em notas de outros usuários também são removidos. O token deixa de valer.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "senha"
+                ],
+                "properties": {
+                  "senha": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "204": {
+            "description": "Conta excluída"
+          },
+          "401": {
+            "$ref": "#/components/responses/NaoAutorizado"
+          },
+          "403": {
+            "description": "Senha incorreta",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          },
+          "422": {
+            "$ref": "#/components/responses/DadosInvalidos"
+          }
+        }
+      }
+    },
+    "/api/conta/exportacao": {
+      "get": {
+        "tags": [
+          "Conta e privacidade"
+        ],
+        "summary": "Exporta todos os dados do titular em JSON (acesso e portabilidade)",
+        "responses": {
+          "200": {
+            "description": "Arquivo JSON com conta, notas, itens e preços por estabelecimento, sem a senha",
+            "headers": {
+              "Content-Disposition": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Exportacao"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NaoAutorizado"
+          }
+        }
+      }
+    },
+    "/api/conta/politica": {
+      "post": {
+        "tags": [
+          "Conta e privacidade"
+        ],
+        "summary": "Aceita a versão vigente da política",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "versao",
+                  "consentimentoDadosSensiveis"
+                ],
+                "properties": {
+                  "versao": {
+                    "type": "string"
+                  },
+                  "consentimentoDadosSensiveis": {
+                    "type": "boolean",
+                    "enum": [
+                      true
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Aceite registrado",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Conta"
                 }
               }
             }
@@ -830,6 +1090,22 @@
           "email": {
             "type": "string",
             "format": "email"
+          },
+          "criadoEm": {
+            "type": "string"
+          },
+          "politicaVersao": {
+            "type": "string",
+            "nullable": true
+          },
+          "politicaAceitaEm": {
+            "type": "string",
+            "format": "date-time",
+            "nullable": true
+          },
+          "politicaPendente": {
+            "type": "boolean",
+            "description": "Verdadeiro quando a versão aceita não é a vigente."
           }
         }
       },
@@ -1408,6 +1684,91 @@
           "ticketMedio": {
             "type": "number",
             "description": "Total gasto / número de notas."
+          }
+        }
+      },
+      "Conta": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/Usuario"
+          },
+          {
+            "type": "object",
+            "properties": {
+              "politicaVersaoAtual": {
+                "type": "string"
+              }
+            }
+          }
+        ]
+      },
+      "Politica": {
+        "type": "object",
+        "properties": {
+          "versao": {
+            "type": "string"
+          },
+          "vigenteDesde": {
+            "type": "string",
+            "format": "date"
+          },
+          "controlador": {
+            "type": "object",
+            "properties": {
+              "nome": {
+                "type": "string"
+              },
+              "papel": {
+                "type": "string"
+              },
+              "contato": {
+                "type": "string"
+              }
+            }
+          },
+          "secoes": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "titulo": {
+                  "type": "string"
+                },
+                "paragrafos": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "Exportacao": {
+        "type": "object",
+        "properties": {
+          "geradoEm": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "controlador": {
+            "type": "object"
+          },
+          "conta": {
+            "type": "object"
+          },
+          "notas": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
+          },
+          "precosPorEstabelecimento": {
+            "type": "array",
+            "items": {
+              "type": "object"
+            }
           }
         }
       },

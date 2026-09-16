@@ -356,6 +356,33 @@ input:focus, select:focus, textarea:focus {
 .barra-acoes { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
 .espaco { flex: 1; }
 
+/* ---------------------------------------------------- conta e privacidade */
+
 .botao-perigo { background: var(--vermelho-600); color: #fff; }
 .botao-perigo:hover { filter: brightness(1.08); }
 button:disabled, .botao:disabled { opacity: 0.55; cursor: not-allowed; filter: none; }
+
+.pagina-avulsa { max-width: 860px; margin: 0 auto; padding: 32px 24px 56px; }
+.marca-escura { color: var(--azul-900); margin-bottom: 14px; }
+
+.politica section + section { margin-top: 18px; }
+.politica h2 { font-size: 1rem; margin-bottom: 6px; }
+.politica p { margin: 0 0 8px; color: var(--tinta-media); font-size: 0.92rem; }
+
+.aceites { display: grid; gap: 10px; }
+.caixa-aceite { display: flex; gap: 10px; align-items: flex-start; font-size: 0.85rem; color: var(--tinta-media); }
+.caixa-aceite input { margin-top: 3px; flex-shrink: 0; }
+.caixa-aceite.destaque {
+  background: var(--ambar-100);
+  border: 1px solid #f0dcae;
+  border-radius: 8px;
+  padding: 9px 11px;
+  color: var(--ambar-600);
+}
+
+.link-privacidade { display: block; margin-top: 10px; font-size: 0.78rem; color: rgba(255, 255, 255, 0.7); }
+.link-discreto { font-size: 0.82rem; text-align: center; }
+
+.formulario-vertical { display: grid; gap: 13px; }
+.zona-perigo { border-color: #f3c6c2; }
+.zona-perigo h2 { color: var(--vermelho-600); }

@@ -12,6 +12,12 @@ export function gravarSessao(sessao) {
   localStorage.setItem(CHAVE_SESSAO, JSON.stringify(sessao));
 }
 
+/** Atualiza os dados da conta guardados na sessão, mantendo o token. */
+export function atualizarUsuarioDaSessao(usuario) {
+  const sessao = lerSessao();
+  if (sessao) gravarSessao({ ...sessao, usuario: { ...sessao.usuario, ...usuario } });
+}
+
 export function encerrarSessao() {
   localStorage.removeItem(CHAVE_SESSAO);
 }
@@ -28,6 +34,11 @@ async function requisitar(caminho, opcoes = {}) {
   const dados = texto ? JSON.parse(texto) : null;
 
   if (!resposta.ok) {
+    // Sessão expirada ou conta excluída: volta para a tela de entrada.
+    if (resposta.status === 401 && sessao?.token && !caminho.startsWith('/auth/')) {
+      encerrarSessao();
+      window.location.assign('/entrar');
+    }
     const erro = new Error(dados?.erro ?? 'Falha na comunicação com o servidor.');
     erro.status = resposta.status;
     erro.dados = dados;
@@ -45,8 +56,17 @@ const comQuery = (caminho, params = {}) => {
 const json = (metodo, corpo) => ({ method: metodo, body: JSON.stringify(corpo) });
 
 export const api = {
+  privacidade: () => requisitar('/privacidade'),
+
   cadastrar: (dados) => requisitar('/auth/cadastro', json('POST', dados)),
   entrar: (dados) => requisitar('/auth/login', json('POST', dados)),
+
+  conta: () => requisitar('/conta'),
+  atualizarConta: (dados) => requisitar('/conta', json('PATCH', dados)),
+  aceitarPolitica: (versao) =>
+    requisitar('/conta/politica', json('POST', { versao, consentimentoDadosSensiveis: true })),
+  exportarDados: () => requisitar('/conta/exportacao'),
+  excluirConta: (senha) => requisitar('/conta', json('DELETE', { senha })),
 
   lerQrCode: (conteudo) => requisitar('/notas/qrcode', json('POST', { conteudo })),
   enviarXml: (xml) =>
@@ -65,6 +85,16 @@ export const api = {
 
   resumo: () => requisitar('/relatorios/resumo')
 };
+
+/** Oferece um objeto como arquivo JSON para download. */
+export function baixarJson(dados, nomeArquivo) {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(dados, null, 2)], { type: 'application/json' }));
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = nomeArquivo;
+  link.click();
+  URL.revokeObjectURL(url);
+}
 
 export const moeda = (valor) =>
   (valor ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });

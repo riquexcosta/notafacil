@@ -6,7 +6,8 @@ const ITENS = [
   { rota: '/leitura', rotulo: 'Ler nota fiscal', icone: '▣' },
   { rota: '/notas', rotulo: 'Histórico de notas', icone: '☰' },
   { rota: '/produtos', rotulo: 'Produtos', icone: '◇' },
-  { rota: '/empresas', rotulo: 'Estabelecimentos', icone: '⌂' }
+  { rota: '/empresas', rotulo: 'Estabelecimentos', icone: '⌂' },
+  { rota: '/conta', rotulo: 'Minha conta', icone: '◎' }
 ];
 
 export default function Layout() {
@@ -45,6 +46,9 @@ export default function Layout() {
           <button type="button" className="botao-sair" onClick={sair}>
             Sair da conta
           </button>
+          <NavLink to="/privacidade" className="link-privacidade">
+            Política de privacidade
+          </NavLink>
         </div>
       </aside>
 
