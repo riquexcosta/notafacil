@@ -384,6 +384,8 @@ button:disabled, .botao:disabled { opacity: 0.55; cursor: not-allowed; filter: n
 
 .link-privacidade { display: block; margin-top: 10px; font-size: 0.78rem; color: rgba(255, 255, 255, 0.7); }
 .titulo-entrar { font-size: 1.25rem; margin-bottom: 18px; }
+.alternar-acesso { margin: 0; text-align: center; font-size: 0.88rem; color: var(--tinta-media); }
+.link-botao { background: none; border: none; padding: 0; color: var(--azul-600); font-weight: 600; font-size: inherit; text-decoration: underline; }
 .link-discreto { font-size: 0.82rem; text-align: center; }
 
 .formulario-vertical { display: grid; gap: 13px; }

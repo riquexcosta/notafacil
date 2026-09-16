@@ -9,49 +9,71 @@ const MODOS = [
   { id: 'xml', titulo: 'Arquivo XML', descricao: 'Importe o XML autorizado' }
 ];
 
+const ID_CAMERA = 'leitor-qrcode';
+const ID_FOTO = 'leitor-qrcode-foto';
+
+// No celular com câmera, a tela já abre na leitura pela câmera.
+const modoInicial = () =>
+  navigator.mediaDevices?.getUserMedia && window.matchMedia('(max-width: 860px)').matches ? 'camera' : 'chave';
+
+async function criarLeitor(elementoId) {
+  const { Html5Qrcode, Html5QrcodeSupportedFormats } = await import('html5-qrcode');
+  return new Html5Qrcode(elementoId, {
+    formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+    // Usa o BarcodeDetector nativo (Android/Chrome) quando existe: lê bem os
+    // QR Codes densos da NFC-e, que o decodificador em JavaScript costuma perder.
+    experimentalFeatures: { useBarCodeDetectorIfSupported: true },
+    verbose: false
+  });
+}
+
+/**
+ * Lê o QR Code de uma foto. Tenta o detector nativo na resolução original e,
+ * sem ele, o html5-qrcode sobre uma área de 1600 px fora da tela: a biblioteca
+ * redimensiona a imagem para o tamanho do elemento, e um elemento pequeno
+ * tornaria o código ilegível.
+ */
+async function lerQrDaFoto(arquivo) {
+  if ('BarcodeDetector' in window) {
+    try {
+      const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+      const imagem = await createImageBitmap(arquivo);
+      const [codigo] = await detector.detect(imagem);
+      imagem.close?.();
+      if (codigo?.rawValue) return codigo.rawValue;
+    } catch {
+      // segue para o decodificador em JavaScript
+    }
+  }
+  const leitor = await criarLeitor(ID_FOTO);
+  try {
+    return (await leitor.scanFileV2(arquivo, false)).decodedText;
+  } finally {
+    leitor.clear();
+  }
+}
+
 export default function Leitura() {
-  const [modo, setModo] = useState('chave');
+  const [modo, setModo] = useState(modoInicial);
   const [chave, setChave] = useState('');
   const [resultado, setResultado] = useState(null);
   const [erro, setErro] = useState(null);
   const [carregando, setCarregando] = useState(false);
-  const [estadoCamera, setEstadoCamera] = useState('inativa');
-  const leitorRef = useRef(null);
+  const [cameraLigada, setCameraLigada] = useState(true);
+  // Trocar a chave remonta o leitor, que pede a câmera de novo.
+  const [tentativa, setTentativa] = useState(0);
 
-  // Ciclo de vida do leitor de QR Code: inicia ao entrar no modo câmera e
-  // encerra o acesso ao dispositivo ao sair da tela.
-  useEffect(() => {
-    if (modo !== 'camera') return undefined;
-    let leitor;
-    let cancelado = false;
+  function lerConteudoQr(texto) {
+    setCameraLigada(false);
+    processar(() => api.lerQrCode(texto));
+  }
 
-    (async () => {
-      try {
-        setEstadoCamera('iniciando');
-        const { Html5Qrcode } = await import('html5-qrcode');
-        if (cancelado) return;
-        leitor = new Html5Qrcode('leitor-qrcode');
-        leitorRef.current = leitor;
-        await leitor.start(
-          { facingMode: 'environment' },
-          { fps: 10, qrbox: { width: 260, height: 260 } },
-          (texto) => {
-            leitor.stop().catch(() => {});
-            processar(() => api.lerQrCode(texto));
-          },
-          () => {}
-        );
-        if (!cancelado) setEstadoCamera('ativa');
-      } catch {
-        if (!cancelado) setEstadoCamera('indisponivel');
-      }
-    })();
-
-    return () => {
-      cancelado = true;
-      if (leitor?.isScanning) leitor.stop().catch(() => {});
-    };
-  }, [modo]);
+  function ligarCamera() {
+    setErro(null);
+    setResultado(null);
+    setTentativa((t) => t + 1);
+    setCameraLigada(true);
+  }
 
   async function processar(acao) {
     setErro(null);
@@ -94,6 +116,7 @@ export default function Leitura() {
               onClick={() => {
                 setModo(m.id);
                 setErro(null);
+                if (m.id === 'camera') setCameraLigada(true);
               }}
             >
               <strong>{m.titulo}</strong>
@@ -104,22 +127,26 @@ export default function Leitura() {
 
         {modo === 'camera' && (
           <>
-            <div id="leitor-qrcode" />
-            {estadoCamera !== 'ativa' && (
+            {cameraLigada ? (
+              <LeitorCamera key={tentativa} aoLer={lerConteudoQr} aoParar={() => setCameraLigada(false)} />
+            ) : carregando ? (
+              <div className="aviso informacao">QR Code lido. Consultando a nota…</div>
+            ) : (
               <div className="moldura-camera">
-                {estadoCamera === 'iniciando' && 'Solicitando acesso à câmera…'}
-                {estadoCamera === 'indisponivel' && (
-                  <>
-                    Câmera indisponível neste dispositivo ou permissão negada.
-                    <br />
-                    Use a chave de acesso ou o arquivo XML.
-                  </>
-                )}
-                {estadoCamera === 'inativa' && 'Preparando o leitor…'}
+                <p>{resultado ? 'Nota importada.' : 'Câmera desligada.'}</p>
+                <button type="button" className="botao-primario" onClick={ligarCamera}>
+                  {resultado ? 'Ler outra nota' : 'Ligar câmera'}
+                </button>
               </div>
             )}
+            <LeitorFoto
+              desativado={carregando}
+              aoLer={lerConteudoQr}
+              aoFalhar={(mensagem) => setErro({ mensagem })}
+            />
           </>
         )}
+        <div id={ID_FOTO} className="area-foto-oculta" aria-hidden="true" />
 
         {modo === 'chave' && (
           <form onSubmit={enviarChave} className="campo">
@@ -165,6 +192,165 @@ export default function Leitura() {
 
       {resultado && <ResultadoLeitura resultado={resultado} />}
     </>
+  );
+}
+
+/**
+ * Leitura contínua pela câmera traseira. Mostra orientação enquanto procura,
+ * sugere a foto se demorar e aciona `aoLer` uma única vez por leitura, para
+ * não disparar duas consultas pagas com o mesmo cupom.
+ */
+function LeitorCamera({ aoLer, aoParar }) {
+  const [estado, setEstado] = useState('iniciando');
+  const [demorando, setDemorando] = useState(false);
+  const [lanterna, setLanterna] = useState(null); // null: sem suporte
+  const aoLerRef = useRef(aoLer);
+  const lanternaRef = useRef(null);
+  const lidoRef = useRef(false);
+
+  useEffect(() => {
+    aoLerRef.current = aoLer;
+  });
+
+  useEffect(() => {
+    let leitor;
+    let cancelado = false;
+    let temporizador;
+
+    const aoDecodificar = (texto) => {
+      if (lidoRef.current) return;
+      lidoRef.current = true;
+      navigator.vibrate?.(120);
+      aoLerRef.current(texto);
+    };
+    const qrbox = (largura, altura) => {
+      const lado = Math.floor(Math.min(largura, altura) * 0.8);
+      return { width: lado, height: lado };
+    };
+
+    (async () => {
+      try {
+        leitor = await criarLeitor(ID_CAMERA);
+        if (cancelado) return;
+        try {
+          await leitor.start(
+            { facingMode: 'environment' },
+            {
+              fps: 15,
+              qrbox,
+              videoConstraints: {
+                facingMode: 'environment',
+                width: { ideal: 1920 },
+                height: { ideal: 1080 },
+                advanced: [{ focusMode: 'continuous' }]
+              }
+            },
+            aoDecodificar,
+            () => {}
+          );
+        } catch {
+          // Câmeras que recusam a resolução pedida: tenta a configuração padrão.
+          await leitor.start({ facingMode: 'environment' }, { fps: 15, qrbox }, aoDecodificar, () => {});
+        }
+        if (cancelado) {
+          leitor.stop().catch(() => {});
+          return;
+        }
+        setEstado('procurando');
+        try {
+          const tocha = leitor.getRunningTrackCameraCapabilities().torchFeature();
+          if (tocha.isSupported()) {
+            lanternaRef.current = tocha;
+            setLanterna(false);
+          }
+        } catch {
+          // navegador sem controle de lanterna
+        }
+        temporizador = setTimeout(() => setDemorando(true), 12000);
+      } catch {
+        if (!cancelado) setEstado('indisponivel');
+      }
+    })();
+
+    return () => {
+      cancelado = true;
+      clearTimeout(temporizador);
+      if (leitor?.isScanning) leitor.stop().catch(() => {});
+    };
+  }, []);
+
+  async function alternarLanterna() {
+    try {
+      await lanternaRef.current.apply(!lanterna);
+      setLanterna(!lanterna);
+    } catch {
+      setLanterna(null);
+    }
+  }
+
+  return (
+    <div className="leitor-camera">
+      <div id={ID_CAMERA} />
+      {estado === 'iniciando' && <div className="moldura-camera">Solicitando acesso à câmera…</div>}
+      {estado === 'indisponivel' && (
+        <div className="moldura-camera">
+          Câmera indisponível neste dispositivo ou permissão negada.
+          <br />
+          Use a foto do QR Code, a chave de acesso ou o arquivo XML.
+        </div>
+      )}
+      {estado === 'procurando' && (
+        <p className="dica-camera">
+          Aponte para o QR Code no rodapé do cupom, a uns 15 cm, com boa luz. A leitura é automática.
+        </p>
+      )}
+      {estado === 'procurando' && demorando && (
+        <div className="aviso informacao">
+          Não está lendo? Toque em <strong>Fotografar o QR Code</strong> ou digite a chave de acesso.
+        </div>
+      )}
+      {estado !== 'indisponivel' && (
+        <div className="barra-acoes">
+          {lanterna !== null && (
+            <button type="button" className="botao-secundario" onClick={alternarLanterna}>
+              {lanterna ? 'Desligar lanterna' : 'Ligar lanterna'}
+            </button>
+          )}
+          <button type="button" className="botao-secundario" onClick={aoParar}>
+            Parar câmera
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Alternativa à câmera ao vivo: a câmera nativa tem foco e resolução melhores. */
+function LeitorFoto({ aoLer, aoFalhar, desativado }) {
+  const [lendo, setLendo] = useState(false);
+
+  async function escolher(evento) {
+    const arquivo = evento.target.files?.[0];
+    evento.target.value = '';
+    if (!arquivo) return;
+    setLendo(true);
+    try {
+      aoLer(await lerQrDaFoto(arquivo));
+    } catch {
+      aoFalhar(
+        'Não encontramos o QR Code na foto. Fotografe mais de perto, com o código nítido e ocupando boa parte da imagem, ou digite a chave de acesso.'
+      );
+    } finally {
+      setLendo(false);
+    }
+  }
+
+  const bloqueado = desativado || lendo;
+  return (
+    <label className={`botao botao-secundario botao-foto ${bloqueado ? 'desativado' : ''}`}>
+      {lendo ? 'Lendo a foto…' : 'Fotografar o QR Code'}
+      <input type="file" accept="image/*" capture="environment" onChange={escolher} disabled={bloqueado} hidden />
+    </label>
   );
 }
 
