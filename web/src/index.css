@@ -491,3 +491,14 @@ tfoot th { border-top: 2px solid var(--borda); padding-top: 10px; }
   .barra-acoes .espaco { display: none; }
   .barra-acoes > button, .barra-acoes > .botao { flex: 1 1 auto; text-align: center; }
 }
+
+/* ------------------------------------------------------- leitor QR Code */
+
+.leitor-camera { display: grid; gap: 10px; }
+#leitor-qrcode video { width: 100% !important; border-radius: var(--raio); }
+.dica-camera { margin: 0; font-size: 0.85rem; color: var(--tinta-media); }
+.moldura-camera p { margin: 0 0 12px; }
+.botao-foto { display: inline-flex; justify-content: center; margin-top: 12px; }
+.botao.desativado { opacity: 0.55; pointer-events: none; }
+/* Área fora da tela usada para decodificar fotos em boa resolução. */
+.area-foto-oculta { position: absolute; left: -10000px; top: 0; width: 1600px; height: 1600px; visibility: hidden; }

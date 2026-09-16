@@ -31,6 +31,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/entrar" element={<Entrar />} />
+      <Route path="/cadastro" element={<Entrar />} />
       <Route path="/privacidade" element={<Privacidade />} />
       <Route
         element={

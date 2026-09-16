@@ -1,13 +1,16 @@
 /**
- * Popula a base com um histórico de compras de demonstração.
+ * Restaura a conta de demonstração com um histórico de compras sintético.
+ * Só a conta demo é apagada e recriada: as contas dos demais usuários, suas
+ * notas e os produtos e estabelecimentos que elas usam são preservados.
  * Uso: npm run seed
  */
+import { pathToFileURL } from 'node:url';
 import bcrypt from 'bcryptjs';
 import { db } from './db/index.js';
 import { calcularDigitoVerificador } from './domain/chaveAcesso.js';
 import { CATALOGO_DEMONSTRACAO } from './domain/nfe/catalogoDemonstracao.js';
 import { VERSAO_POLITICA } from './lgpd/politica.js';
-import { importarNota } from './services/notaService.js';
+import { importarNota, removerRegistrosOrfaos } from './services/notaService.js';
 
 const CODIGO_UF_PB = '25';
 
@@ -26,8 +29,13 @@ function montarChave({ cnpj, ano, mes, modelo = '65', serie = 1, numero, codigo 
   return base + calcularDigitoVerificador(base);
 }
 
-// Gerador pseudoaleatório com semente fixa: o seed é reprodutível.
-let semente = 20260910;
+export const EMAIL_DEMONSTRACAO = 'demo@notafacil.app';
+const SENHA_DEMONSTRACAO = 'demo1234';
+
+// Gerador pseudoaleatório com semente fixa: o seed é reprodutível. A semente
+// volta ao valor inicial a cada restauração, para os preços serem sempre os mesmos.
+const SEMENTE_INICIAL = 20260910;
+let semente = SEMENTE_INICIAL;
 function aleatorio() {
   semente = (semente * 1103515245 + 12345) % 2147483648;
   return semente / 2147483648;
@@ -108,15 +116,12 @@ function gerarNota({ empresaIndice, indiceMes, numero }) {
   };
 }
 
-function executar() {
-  db.exec(`
-    DELETE FROM preco_empresa_produto;
-    DELETE FROM item_nota;
-    DELETE FROM nota_fiscal;
-    DELETE FROM produto;
-    DELETE FROM empresa;
-    DELETE FROM usuario;
-  `);
+export const restaurarContaDemonstracao = db.transaction(() => {
+  semente = SEMENTE_INICIAL;
+
+  // Apaga só a conta demo; notas, itens e preços dela saem em cascata.
+  db.prepare('DELETE FROM usuario WHERE email = ?').run(EMAIL_DEMONSTRACAO);
+  removerRegistrosOrfaos();
 
   // A conta de demonstração já nasce com a política vigente aceita.
   const usuario = db
@@ -124,7 +129,7 @@ function executar() {
       `INSERT INTO usuario (nome, email, senha_hash, politica_versao, politica_aceita_em)
        VALUES (?, ?, ?, ?, ?)`
     )
-    .run('Henrique Gonsalves', 'demo@notafacil.app', bcrypt.hashSync('demo1234', 10), VERSAO_POLITICA, new Date().toISOString());
+    .run('Henrique Gonsalves', EMAIL_DEMONSTRACAO, bcrypt.hashSync(SENHA_DEMONSTRACAO, 10), VERSAO_POLITICA, new Date().toISOString());
   const usuarioId = Number(usuario.lastInsertRowid);
 
   // Seis meses de compras: 3 notas/mês no supermercado e no atacado,
@@ -148,15 +153,26 @@ function executar() {
     }
   }
 
-  const itens = db.prepare('SELECT COUNT(*) AS t FROM item_nota').get().t;
-  const produtosDistintos = db.prepare('SELECT COUNT(*) AS t FROM produto').get().t;
+  const contagem = db
+    .prepare(
+      `SELECT COUNT(DISTINCT n.id) AS notas, COUNT(i.id) AS itens,
+              COUNT(DISTINCT i.produto_id) AS produtos, COUNT(DISTINCT n.empresa_id) AS estabelecimentos
+         FROM nota_fiscal n JOIN item_nota i ON i.nota_id = n.id
+        WHERE n.usuario_id = ?`
+    )
+    .get(usuarioId);
+  return { usuarioId, importadas, ...contagem };
+});
 
-  console.log('Base de demonstração criada:');
-  console.log(`  usuário .............. demo@notafacil.app / demo1234`);
-  console.log(`  notas fiscais ........ ${importadas}`);
-  console.log(`  itens ................ ${itens}`);
-  console.log(`  produtos distintos ... ${produtosDistintos}`);
-  console.log(`  estabelecimentos ..... ${db.prepare('SELECT COUNT(*) AS t FROM empresa').get().t}`);
+function executar() {
+  const resumo = restaurarContaDemonstracao();
+  console.log('Conta de demonstração restaurada:');
+  console.log(`  usuário .............. ${EMAIL_DEMONSTRACAO} / ${SENHA_DEMONSTRACAO}`);
+  console.log(`  notas fiscais ........ ${resumo.notas}`);
+  console.log(`  itens ................ ${resumo.itens}`);
+  console.log(`  produtos distintos ... ${resumo.produtos}`);
+  console.log(`  estabelecimentos ..... ${resumo.estabelecimentos}`);
 }
 
-executar();
+// Executa só quando chamado pela linha de comando, não ao ser importado nos testes.
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) executar();

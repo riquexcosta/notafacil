@@ -1,11 +1,17 @@
 import { useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { api, gravarSessao } from '../servicos/api.js';
+
+const CONTA_DEMONSTRACAO = { nome: '', email: 'demo@notafacil.app', senha: 'demo1234' };
+const dadosIniciais = (aba) => (aba === 'cadastro' ? { nome: '', email: '', senha: '' } : CONTA_DEMONSTRACAO);
 
 export default function Entrar() {
   const navegar = useNavigate();
-  const [aba, setAba] = useState('entrar');
-  const [dados, setDados] = useState({ nome: '', email: 'demo@notafacil.app', senha: 'demo1234' });
+  const local = useLocation();
+  // /cadastro abre direto na aba de criação de conta.
+  const [aba, setAba] = useState(local.pathname === '/cadastro' ? 'cadastro' : 'entrar');
+  // A conta de demonstração vem preenchida só para entrar; o cadastro começa vazio.
+  const [dados, setDados] = useState(() => dadosIniciais(aba));
   const [aceitePolitica, setAceitePolitica] = useState(false);
   const [consentimento, setConsentimento] = useState(false);
   const [versaoPolitica, setVersaoPolitica] = useState(null);
@@ -24,6 +30,12 @@ export default function Entrar() {
       .then((s) => setCadastroAberto(s.cadastroAberto !== false))
       .catch(() => setCadastroAberto(false));
   }, []);
+
+  function mudarAba(nova) {
+    setAba(nova);
+    setDados(dadosIniciais(nova));
+    setErro(null);
+  }
 
   const alterar = (campo) => (evento) => setDados({ ...dados, [campo]: evento.target.value });
   const cadastro = cadastroAberto && aba === 'cadastro';
@@ -72,10 +84,10 @@ export default function Entrar() {
       <section className="login-formulario">
         {cadastroAberto ? (
           <div className="abas">
-            <button type="button" className={!cadastro ? 'ativa' : undefined} onClick={() => setAba('entrar')}>
+            <button type="button" className={!cadastro ? 'ativa' : undefined} onClick={() => mudarAba('entrar')}>
               Entrar
             </button>
-            <button type="button" className={cadastro ? 'ativa' : undefined} onClick={() => setAba('cadastro')}>
+            <button type="button" className={cadastro ? 'ativa' : undefined} onClick={() => mudarAba('cadastro')}>
               Criar conta
             </button>
           </div>
@@ -151,6 +163,15 @@ export default function Entrar() {
             {carregando ? 'Aguarde…' : cadastro ? 'Criar conta' : 'Entrar'}
           </button>
         </form>
+
+        {cadastroAberto && (
+          <p className="alternar-acesso">
+            {cadastro ? 'Já tem conta?' : 'Não tem conta?'}{' '}
+            <button type="button" className="link-botao" onClick={() => mudarAba(cadastro ? 'entrar' : 'cadastro')}>
+              {cadastro ? 'Entrar' : 'Criar conta'}
+            </button>
+          </p>
+        )}
 
         <div className="aviso informacao">
           Conta de demonstração: <strong>demo@notafacil.app</strong> / <strong>demo1234</strong>

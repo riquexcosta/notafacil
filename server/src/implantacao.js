@@ -16,6 +16,16 @@ export function cadastroAberto(ambiente = process.env) {
 }
 
 /**
+ * Quantas contas um mesmo IP pode criar por hora (LIMITE_CADASTROS_POR_HORA,
+ * padrão 5). Com o cadastro aberto, evita a criação em massa de contas que
+ * consumiriam a consulta paga.
+ */
+export function limiteDeCadastrosPorHora(ambiente = process.env) {
+  const valor = Number(ambiente.LIMITE_CADASTROS_POR_HORA);
+  return Number.isInteger(valor) && valor > 0 ? valor : 5;
+}
+
+/**
  * Valor de `trust proxy` do Express. Atrás de um proxy reverso (nginx), o IP
  * real do cliente chega em X-Forwarded-For; sem essa configuração o limite de
  * tentativas de login trataria todos os acessos como vindos do próprio proxy.

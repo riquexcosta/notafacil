@@ -9,8 +9,9 @@ Produto de software desenvolvido como Trabalho de Conclusão de Curso do Bachare
 Engenharia de Software da Unicesumar. Autor: **Henrique Gonsalves Costa**.
 
 **Demonstração online:** https://notafacil.henriquegratidao.com.br, com a conta
-`demo@notafacil.app` e a senha `demo1234`. O cadastro está fechado nessa instalação e a conta de
-demonstração é restaurada todo dia às 4h (horário de Brasília).
+`demo@notafacil.app` e a senha `demo1234`, ou crie a sua conta em
+https://notafacil.henriquegratidao.com.br/cadastro. A conta de demonstração é restaurada todo dia
+às 4h (horário de Brasília), sem afetar as contas criadas.
 
 ---
 
@@ -149,7 +150,8 @@ O comando recria o arquivo `server/data/notafacil.db` com seis meses de compras
 simuladas: 41 notas, 207 itens, 19 produtos e 4 estabelecimentos, além da conta de
 demonstração `demo@notafacil.app` / `demo1234`.
 
-> O seed apaga e recria a base. Rode de novo sempre que quiser voltar ao estado inicial.
+> O seed apaga e recria só a conta de demonstração; as demais contas ficam intactas. Rode de novo
+> sempre que quiser voltar ao estado inicial da demo.
 
 ### 3. Configurar o `.env` (opcional)
 
@@ -211,7 +213,8 @@ Todas são opcionais e ficam em `server/.env` (veja `server/.env.example`).
 | `JWT_SECRET` | `notafacil-desenvolvimento` fora de produção | Segredo que assina o token de sessão. **Obrigatório em produção**: com `NODE_ENV=production`, a API não inicia sem ele. |
 | `NODE_ENV` | vazio | `production` ativa as exigências de produção, como o `JWT_SECRET` próprio. |
 | `CORS_ORIGENS` | `http://localhost:5173` | Origens autorizadas a chamar a API pelo navegador, separadas por vírgula. |
-| `CADASTRO_ABERTO` | aberto | `false` fecha o cadastro de novas contas: a API responde 403 e a tela de entrada esconde a aba de cadastro. |
+| `CADASTRO_ABERTO` | aberto | `false` fecha o cadastro de novas contas: a API responde 403 e a tela de entrada esconde a aba e o link de cadastro. |
+| `LIMITE_CADASTROS_POR_HORA` | `5` | Contas que um mesmo IP pode criar por hora. Acima disso, a API responde 429 com `Retry-After`. |
 | `TRUST_PROXY` | desligado | Valor de `trust proxy` do Express atrás de um proxy reverso (`loopback` ou número de saltos), para o limite de login usar o IP real do cliente. |
 | `CLIENTE_DIR` | `web/dist` | Pasta do build do cliente. Quando existe, a API serve o cliente na mesma origem, com as rotas do React. |
 | `VITE_API_URL` | `http://localhost:3333` | Destino do proxy `/api` do cliente em desenvolvimento. |
@@ -227,8 +230,8 @@ O `.env` não vai para o Git.
 | `npm start` | Sobe a API lendo o `.env`. |
 | `npm run dev` | Mesmo que o anterior, com recarga automática. |
 | `npm run start:demo` | Sobe a API no modo demonstração. |
-| `npm run seed` | Recria a base de demonstração. |
-| `npm test` | Roda os 75 testes automatizados. |
+| `npm run seed` | Restaura a conta de demonstração, sem tocar nas outras contas. |
+| `npm test` | Roda os 77 testes automatizados. |
 | `npm run sonda:infosimples -- <chave>` | Faz **uma** consulta real à Infosimples e grava a resposta em `server/data/infosimples-amostra.json`. Consome uma requisição da conta. |
 
 **`web/`**
@@ -391,7 +394,7 @@ Para publicar o sistema: sirva a API e o cliente por HTTPS, defina `JWT_SECRET` 
 npm --prefix server test
 ```
 
-São 75 casos, executados sobre uma base isolada em diretório temporário:
+São 77 casos, executados sobre uma base isolada em diretório temporário:
 
 | Arquivo | Casos | Cobre |
 | --- | --- | --- |
@@ -401,7 +404,7 @@ São 75 casos, executados sobre uma base isolada em diretório temporário:
 | `infosimples.test.js` | 8 | Conversão da resposta real, validação do GTIN, datas, notas canceladas e desvio em caso de falha. |
 | `metricas.test.js` | 17 | Fórmulas do painel, dos produtos, da nota e do comparativo; ordem cronológica da comparação; isolamento entre usuários; exclusão de nota. |
 | `lgpd.test.js` | 13 | Aceite e consentimento no cadastro, política pendente, exportação, correção, exclusão de nota e de conta, descarte do CPF, isolamento pelas rotas, limite de login, CORS e segredo obrigatório em produção. |
-| `implantacao.test.js` | 5 | Cadastro fechado por configuração, confiança no proxy, cliente web servido pela API e 404 em JSON para rota inexistente. |
+| `implantacao.test.js` | 7 | Cadastro fechado por configuração, limite de cadastros por IP, restauração da conta demo sem afetar outras contas, confiança no proxy, cliente web servido pela API e 404 em JSON para rota inexistente. |
 | `openapi.test.js` | 5 | Estrutura da especificação e sincronia com as rotas: falha se uma rota ficar sem documentação ou se a documentação citar rota inexistente. |
 
 Nenhum teste faz chamada paga: a Infosimples é substituída por um duplo que devolve uma
@@ -468,8 +471,8 @@ systemctl start notafacil-demo.timer
 certbot --nginx -d notafacil.exemplo.com.br
 ```
 
-> O seed **apaga todas as contas e notas** antes de criar a conta de demonstração. Por isso a
-> restauração diária só deve ser ativada com `CADASTRO_ABERTO=false`.
+> A restauração diária apaga e recria **só a conta de demonstração**. As contas criadas pelo
+> cadastro, suas notas e os produtos e lojas que elas usam são preservados.
 
 ## Problemas comuns
 
@@ -485,7 +488,7 @@ certbot --nginx -d notafacil.exemplo.com.br
 | Depois de entrar, abre a política de privacidade | A conta ainda não aceitou a versão vigente da política. Leia e aceite para continuar. |
 | API não inicia com `JWT_SECRET é obrigatório em produção` | `NODE_ENV=production` sem `JWT_SECRET`. Defina um segredo longo e aleatório no `.env`. |
 | Aba "Criar conta" não aparece | A instalação está com `CADASTRO_ABERTO=false`. Use a conta de demonstração. |
-| Base com dados estranhos após testes manuais | Rode `npm --prefix server run seed` para recriar a base de demonstração. |
+| Conta demo com dados estranhos após testes manuais | Rode `npm --prefix server run seed` para restaurar a conta de demonstração. |
 
 ## Limitações conhecidas
 

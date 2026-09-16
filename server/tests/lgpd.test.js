@@ -6,6 +6,8 @@ import path from 'node:path';
 
 process.env.DB_PATH = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'notafacil-lgpd-')), 'teste.db');
 process.env.NODE_ENV = 'test';
+// Os testes criam várias contas a partir do mesmo IP.
+process.env.LIMITE_CADASTROS_POR_HORA = '1000';
 
 const { app } = await import('../src/index.js');
 const { db } = await import('../src/db/index.js');

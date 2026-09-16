@@ -1,6 +1,6 @@
 # /etc/systemd/system/notafacil-demo.service
-# Recria a base de demonstração. ATENÇÃO: o seed apaga todas as contas e notas;
-# use apenas em instalações com o cadastro fechado (CADASTRO_ABERTO=false).
+# Restaura a conta de demonstração (demo@notafacil.app). Só ela é apagada e
+# recriada: as contas criadas pelo cadastro e suas notas são preservadas.
 [Unit]
 Description=NotaFácil: restaura a conta de demonstração
 

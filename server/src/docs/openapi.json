@@ -228,6 +228,27 @@
           },
           "422": {
             "$ref": "#/components/responses/DadosInvalidos"
+          },
+          "429": {
+            "description": "Limite de contas criadas pelo mesmo IP na última hora (LIMITE_CADASTROS_POR_HORA, padrão 5)",
+            "headers": {
+              "Retry-After": {
+                "description": "Segundos até liberar novos cadastros",
+                "schema": {
+                  "type": "integer"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                },
+                "example": {
+                  "erro": "Muitas contas criadas a partir desta rede. Tente novamente em 42 minuto(s)."
+                }
+              }
+            }
           }
         },
         "description": "Exige o aceite da política de privacidade vigente e o consentimento específico para compras que possam revelar dados de saúde (art. 11, I, da LGPD). A versão aceita e a data do aceite ficam registradas na conta."

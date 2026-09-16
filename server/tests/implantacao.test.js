@@ -14,10 +14,16 @@ fs.writeFileSync(path.join(cliente, 'assets', 'app.js'), 'console.log("ok");');
 process.env.DB_PATH = path.join(pasta, 'teste.db');
 process.env.CLIENTE_DIR = cliente;
 process.env.NODE_ENV = 'test';
+process.env.LIMITE_CADASTROS_POR_HORA = '3';
 
 const { app } = await import('../src/index.js');
 const { VERSAO_POLITICA } = await import('../src/lgpd/politica.js');
-const { cadastroAberto, confiancaNoProxy } = await import('../src/implantacao.js');
+const { cadastroAberto, confiancaNoProxy, limiteDeCadastrosPorHora } = await import('../src/implantacao.js');
+const { db } = await import('../src/db/index.js');
+const { calcularDigitoVerificador } = await import('../src/domain/chaveAcesso.js');
+const { CATALOGO_DEMONSTRACAO } = await import('../src/domain/nfe/catalogoDemonstracao.js');
+const { importarNota, resumoDoUsuario } = await import('../src/services/notaService.js');
+const { EMAIL_DEMONSTRACAO, restaurarContaDemonstracao } = await import('../src/seed.js');
 
 let servidor;
 let origem;
@@ -94,4 +100,59 @@ test('rota inexistente da API responde 404 em JSON, e não com o cliente web', a
   assert.equal(resposta.status, 404);
   assert.match(resposta.headers.get('content-type'), /application\/json/);
   assert.ok((await resposta.json()).erro);
+});
+
+test('restaurar a conta demo recria só ela e preserva as notas dos outros usuários', () => {
+  const primeira = restaurarContaDemonstracao();
+  assert.equal(primeira.notas, 41);
+  assert.equal(primeira.itens, 207);
+
+  // Outro usuário compra um produto e numa loja que a conta demo também usa.
+  const outro = Number(
+    db.prepare('INSERT INTO usuario (nome, email, senha_hash) VALUES (?, ?, ?)').run('Outro', 'outro@teste.dev', 'x')
+      .lastInsertRowid
+  );
+  const [loja] = CATALOGO_DEMONSTRACAO.empresas;
+  const [produto] = CATALOGO_DEMONSTRACAO.produtos;
+  const base = '25' + '2609' + loja.cnpj + '65' + '001' + '000009999' + '1' + '99999999';
+  importarNota(outro, {
+    chave: base + calcularDigitoVerificador(base),
+    numero: '9999',
+    serie: '1',
+    modelo: '65',
+    dataEmissao: '2026-09-15',
+    horaEmissao: '10:00:00',
+    valorTotal: 12.5,
+    valorTributos: 0,
+    emitente: loja,
+    origem: 'xml',
+    itens: [{ ...produto, quantidade: 1, valorUnitario: 12.5, valorTotal: 12.5, valorTributos: 0 }]
+  });
+
+  const segunda = restaurarContaDemonstracao();
+  assert.notEqual(segunda.usuarioId, primeira.usuarioId);
+  assert.equal(segunda.notas, 41);
+  assert.equal(segunda.itens, 207);
+  // A semente volta ao início: os preços da demo são sempre os mesmos.
+  assert.equal(resumoDoUsuario(segunda.usuarioId).totalGasto, 4311.21);
+
+  assert.equal(db.prepare('SELECT COUNT(*) AS n FROM usuario WHERE email = ?').get(EMAIL_DEMONSTRACAO).n, 1);
+  const doOutro = resumoDoUsuario(outro);
+  assert.equal(doOutro.totalNotas, 1);
+  assert.equal(doOutro.totalGasto, 12.5);
+});
+
+test('o mesmo IP cria no máximo LIMITE_CADASTROS_POR_HORA contas por hora', async () => {
+  assert.equal(limiteDeCadastrosPorHora({}), 5);
+  assert.equal(limiteDeCadastrosPorHora({ LIMITE_CADASTROS_POR_HORA: '20' }), 20);
+  assert.equal(limiteDeCadastrosPorHora({ LIMITE_CADASTROS_POR_HORA: 'abc' }), 5);
+
+  // Limite 3 neste arquivo; uma conta já foi criada no teste do cadastro aberto.
+  assert.equal((await cadastro('segunda@teste.dev')).status, 201);
+  assert.equal((await cadastro('terceira@teste.dev')).status, 201);
+
+  const bloqueado = await cadastro('quarta@teste.dev');
+  assert.equal(bloqueado.status, 429);
+  assert.ok(Number(bloqueado.headers.get('retry-after')) > 0);
+  assert.match((await bloqueado.json()).erro, /Muitas contas/);
 });

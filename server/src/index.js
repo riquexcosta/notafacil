@@ -14,7 +14,7 @@ import {
   ProvedorSefaz,
   ProvedorXmlAutorizado
 } from './domain/nfe/provedores.js';
-import { cadastroAberto, confiancaNoProxy, pastaDoCliente } from './implantacao.js';
+import { cadastroAberto, confiancaNoProxy, limiteDeCadastrosPorHora, pastaDoCliente } from './implantacao.js';
 import { POLITICA, VERSAO_POLITICA } from './lgpd/politica.js';
 import { cabecalhosDeSeguranca, criarLimitadorDeLogin, origensPermitidas } from './seguranca.js';
 import { compararEstabelecimentos } from './services/comparativoService.js';
@@ -120,13 +120,25 @@ const esquemaCadastro = z.object({
   })
 });
 
+// Conta as contas criadas por IP na última hora (reaproveita o limitador do login).
+const limitadorDeCadastro = criarLimitadorDeLogin({ maximo: limiteDeCadastrosPorHora(), janelaMs: 60 * 60 * 1000 });
+
 app.post(
   '/api/auth/cadastro',
   rota((req, res) => {
     if (!cadastroAberto()) {
       return res.status(403).json({ erro: 'O cadastro de novas contas está fechado nesta instalação.' });
     }
-    res.status(201).json(registrar(esquemaCadastro.parse(req.body)));
+    const espera = limitadorDeCadastro.segundosDeBloqueio(req.ip);
+    if (espera > 0) {
+      res.set('Retry-After', String(espera));
+      return res
+        .status(429)
+        .json({ erro: `Muitas contas criadas a partir desta rede. Tente novamente em ${Math.ceil(espera / 60)} minuto(s).` });
+    }
+    const conta = registrar(esquemaCadastro.parse(req.body));
+    limitadorDeCadastro.registrarFalha(req.ip);
+    res.status(201).json(conta);
   })
 );
 
