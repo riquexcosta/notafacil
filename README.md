@@ -13,6 +13,7 @@ Engenharia de Software da Unicesumar. Autor: **Henrique Gonsalves Costa**.
 ## Sumário
 
 - [O que a aplicação faz](#o-que-a-aplicação-faz)
+- [Como as métricas são calculadas](#como-as-métricas-são-calculadas)
 - [Como a nota é obtida](#como-a-nota-é-obtida)
 - [Requisitos](#requisitos)
 - [Como rodar localmente](#como-rodar-localmente)
@@ -22,6 +23,7 @@ Engenharia de Software da Unicesumar. Autor: **Henrique Gonsalves Costa**.
 - [Arquitetura](#arquitetura)
 - [Modelo de dados](#modelo-de-dados)
 - [Identidade do produto e comparação de preços](#identidade-do-produto-e-comparação-de-preços)
+- [Privacidade e LGPD](#privacidade-e-lgpd)
 - [Testes](#testes)
 - [Capturas e diagramas](#capturas-e-diagramas)
 - [Problemas comuns](#problemas-comuns)
@@ -33,17 +35,21 @@ Engenharia de Software da Unicesumar. Autor: **Henrique Gonsalves Costa**.
 ## O que a aplicação faz
 
 O sistema é de uso individual: cada usuário enxerga apenas as notas que registrou. As
-funcionalidades estão organizadas em cinco telas.
+funcionalidades estão organizadas nas telas abaixo.
 
 | Tela | Rota | O que oferece |
 | --- | --- | --- |
 | **Entrar** | `/entrar` | Criação de conta e login com e-mail e senha. A sessão é mantida por token assinado guardado no navegador. |
 | **Painel** | `/painel` | Indicadores de notas, gasto total, tributos e ticket médio; gráfico de gasto por mês; produtos de maior variação de preço; produtos comprados com mais frequência. |
 | **Ler nota** | `/leitura` | Três formas de registrar uma nota: leitura do QR Code pela câmera, digitação da chave de acesso (ou da URL de consulta) e importação do arquivo XML. Mostra os campos interpretados da chave, a comparação item a item e a economia possível. |
-| **Notas** | `/notas` e `/notas/:id` | Histórico com filtros por estabelecimento, chave e período. O detalhe traz emitente, itens, tributos, origem do registro e a comparação de cada item. |
+| **Notas** | `/notas` e `/notas/:id` | Histórico com filtros por estabelecimento, chave e período. O detalhe traz emitente, itens, tributos, origem do registro, a comparação de cada item e a opção de excluir a nota. |
 | **Produtos e Empresas** | `/produtos`, `/produtos/:id` e `/empresas` | Busca por descrição, código de barras ou classificação fiscal; produtos recorrentes; série histórica do preço unitário; preço mais recente por estabelecimento e produtos comprados em cada loja. |
+| **Comparar lojas** | `/comparativo` | Para os produtos comprados em duas ou mais lojas: preço em cada uma, a mais barata, diferença e amplitude, além do custo da cesta em comum e da economia. Permite escolher o período e as lojas. |
+| **Minha conta** | `/conta` | Corrigir nome e e-mail, baixar todos os dados em JSON e excluir a conta. |
+| **Privacidade** | `/privacidade` | Política de privacidade versionada, pública, com o aceite da versão vigente. |
 
-Ao registrar uma nota, cada item recebe uma situação:
+Cada item de uma nota é comparado com a compra anterior mais recente do mesmo produto, só entre as
+compras feitas antes dela, e recebe uma situação:
 
 - **novo**: primeira compra do produto no histórico;
 - **aumento**: preço mais de 1% acima da compra anterior;
@@ -53,6 +59,31 @@ Ao registrar uma nota, cada item recebe uma situação:
 
 O sistema também calcula o menor preço já pago pelo produto e quanto a compra teria
 custado a menos com esse valor.
+
+## Como as métricas são calculadas
+
+Todos os valores são calculados na API, nunca na tela, e cada fórmula tem teste em
+`server/tests/metricas.test.js`. Todas as consultas são filtradas pelo usuário autenticado.
+
+| Onde aparece | Métrica | Fórmula |
+| --- | --- | --- |
+| Painel | Total gasto | Σ valor total das notas |
+| Painel | Tributos embutidos | Σ tributos ÷ Σ valor total × 100 |
+| Painel | Ticket médio | total gasto ÷ número de notas |
+| Painel | Gasto por mês | Σ valor total das notas do mês, com zero nos meses sem compra |
+| Painel, produtos | Preço médio | Σ valor total ÷ Σ quantidade (média ponderada pela quantidade) |
+| Painel, produtos | Amplitude | (maior preço unitário − menor) ÷ menor × 100 |
+| Detalhe do produto | Variação no período | (preço da última compra − preço da primeira) ÷ primeira × 100 |
+| Detalhe do produto | Onde está mais barato | preço da compra mais recente do usuário em cada loja |
+| Detalhe da nota | Variação do item | (preço atual − preço da compra anterior) ÷ anterior × 100 |
+| Detalhe da nota | Economia possível | máx(0, (preço atual − menor preço anterior) × quantidade) |
+| Histórico de notas | Quantidade e totais | somados sobre todas as notas filtradas; a lista exibe as 200 mais recentes |
+| Comparar lojas | Preço na loja | compra mais recente do produto naquela loja, no período |
+| Comparar lojas | Cesta comum | produtos com preço em todas as lojas comparadas; custo = soma do preço de uma unidade de cada |
+| Comparar lojas | Economia da cesta | custo na loja mais cara − custo na mais barata; o percentual é sobre a mais cara |
+
+Na comparação da nota, "compra anterior" é sempre anterior à própria nota, pela data e pela
+hora de emissão. Importar notas fora de ordem não altera o resultado de nenhuma delas.
 
 ## Como a nota é obtida
 
@@ -172,7 +203,9 @@ Todas são opcionais e ficam em `server/.env` (veja `server/.env.example`).
 | `NFE_MODO_DEMO` | vazio | `1` liga o modo demonstração (mesmo efeito de `npm run start:demo`). |
 | `PORT` | `3333` | Porta da API. |
 | `DB_PATH` | `server/data/notafacil.db` | Caminho do arquivo SQLite. Os testes usam um diretório temporário. |
-| `JWT_SECRET` | `notafacil-desenvolvimento` | Segredo que assina o token de sessão. **Troque em produção.** |
+| `JWT_SECRET` | `notafacil-desenvolvimento` fora de produção | Segredo que assina o token de sessão. **Obrigatório em produção**: com `NODE_ENV=production`, a API não inicia sem ele. |
+| `NODE_ENV` | vazio | `production` ativa as exigências de produção, como o `JWT_SECRET` próprio. |
+| `CORS_ORIGENS` | `http://localhost:5173` | Origens autorizadas a chamar a API pelo navegador, separadas por vírgula. |
 | `VITE_API_URL` | `http://localhost:3333` | Destino do proxy `/api` do cliente em desenvolvimento. |
 
 O `.env` não vai para o Git.
@@ -187,7 +220,7 @@ O `.env` não vai para o Git.
 | `npm run dev` | Mesmo que o anterior, com recarga automática. |
 | `npm run start:demo` | Sobe a API no modo demonstração. |
 | `npm run seed` | Recria a base de demonstração. |
-| `npm test` | Roda os 40 testes automatizados. |
+| `npm test` | Roda os 70 testes automatizados. |
 | `npm run sonda:infosimples -- <chave>` | Faz **uma** consulta real à Infosimples e grava a resposta em `server/data/infosimples-amostra.json`. Consome uma requisição da conta. |
 
 **`web/`**
@@ -210,25 +243,34 @@ O `.env` não vai para o Git.
 ## API REST
 
 Todas as rotas autenticadas esperam o cabeçalho `Authorization: Bearer <token>`, obtido
-no login. O corpo é JSON, exceto a importação de XML, que aceita `application/xml`.
+no login. O corpo é JSON, exceto a importação de XML, que aceita `application/xml`. Todas as
+consultas são filtradas pelo usuário autenticado.
 
 | Método | Rota | Acesso | Descrição |
 | --- | --- | --- | --- |
 | `GET` | `/api/saude` | pública | Verificação de disponibilidade. |
 | `GET` | `/api/docs` | pública | Documentação navegável (Swagger UI). |
 | `GET` | `/api/openapi.json` | pública | Especificação OpenAPI 3.0 da API. |
-| `POST` | `/api/auth/cadastro` | pública | Cria conta com nome, e-mail e senha. |
-| `POST` | `/api/auth/login` | pública | Devolve o token de sessão. |
+| `GET` | `/api/privacidade` | pública | Política de privacidade vigente. |
+| `POST` | `/api/auth/cadastro` | pública | Cria conta com nome, e-mail e senha, exigindo o aceite da política. |
+| `POST` | `/api/auth/login` | pública | Devolve o token de sessão. Bloqueia após 5 tentativas erradas (429). |
+| `GET` | `/api/conta` | autenticada | Dados da conta e situação do aceite da política. |
+| `PATCH` | `/api/conta` | autenticada | Corrige nome ou e-mail. |
+| `DELETE` | `/api/conta` | autenticada | Exclui a conta e todos os dados, com confirmação de senha. |
+| `GET` | `/api/conta/exportacao` | autenticada | Exporta todos os dados do titular em JSON. |
+| `POST` | `/api/conta/politica` | autenticada | Registra o aceite da versão vigente da política. |
 | `POST` | `/api/notas/qrcode` | autenticada | Registra uma nota a partir do conteúdo do QR Code ou da chave de acesso. |
 | `POST` | `/api/notas/xml` | autenticada | Registra uma nota a partir do XML de autorização. |
-| `GET` | `/api/notas` | autenticada | Lista as notas, com filtros por chave, período, empresa e busca. |
+| `GET` | `/api/notas` | autenticada | Lista as notas, com filtros por chave, período, empresa e busca, e devolve quantidade e totais de todas as filtradas. |
 | `GET` | `/api/notas/:id` | autenticada | Detalhe da nota com itens e comparação. |
+| `DELETE` | `/api/notas/:id` | autenticada | Exclui a nota e recalcula os preços por estabelecimento. |
 | `GET` | `/api/notas/:id/comparacao` | autenticada | Comparação item a item com o histórico. |
 | `GET` | `/api/produtos` | autenticada | Busca produtos por descrição, código de barras ou classificação fiscal. |
 | `GET` | `/api/produtos/recorrentes` | autenticada | Produtos comprados em duas ou mais notas. |
 | `GET` | `/api/produtos/:id/historico` | autenticada | Série histórica de preço, ofertas por loja e estatísticas. |
 | `GET` | `/api/empresas` | autenticada | Estabelecimentos com total gasto e última compra. |
 | `GET` | `/api/empresas/:id/produtos` | autenticada | Produtos comprados em um estabelecimento. |
+| `GET` | `/api/comparativo/estabelecimentos` | autenticada | Comparação de preços e da cesta comum entre lojas, por período. |
 | `GET` | `/api/relatorios/resumo` | autenticada | Indicadores do painel. |
 
 Com a API no ar, a documentação navegável fica em **http://localhost:3333/api/docs**, e a
@@ -253,7 +295,9 @@ O servidor é dividido em camadas:
 ```
 server/src/index.js              rotas, validação de entrada e tratamento de erro
 server/src/auth.js               cadastro, login e middleware de autenticação
-server/src/services/             casos de uso: importação, comparação e buscas
+server/src/seguranca.js          segredo do token, CORS, cabeçalhos e limite de login
+server/src/lgpd/politica.js      política de privacidade versionada
+server/src/services/             casos de uso: importação, comparação, conta e comparativo
 server/src/domain/chaveAcesso.js validação e decomposição da chave (módulo 11)
 server/src/domain/nfe/           porta de consulta e provedores
 server/src/db/                   conexão, esquema e migração
@@ -268,12 +312,12 @@ Seis tabelas em SQLite, criadas automaticamente na primeira execução:
 
 | Tabela | Papel |
 | --- | --- |
-| `usuario` | Conta de acesso, com senha guardada como hash bcrypt. |
+| `usuario` | Conta de acesso, com senha guardada como hash bcrypt e a versão e a data do aceite da política. |
 | `empresa` | Estabelecimento emitente, único por CNPJ. |
 | `produto` | Produto único no sistema, identificado por código de barras ou por classificação fiscal e descrição normalizada. |
-| `nota_fiscal` | Nota registrada por um usuário, única por par usuário e chave de acesso. |
+| `nota_fiscal` | Nota registrada por um usuário, com data e hora de emissão, única por par usuário e chave de acesso. |
 | `item_nota` | Ocorrência de compra, com quantidade, valor unitário e tributos. |
-| `preco_empresa_produto` | Preço mais recente de cada produto em cada estabelecimento. |
+| `preco_empresa_produto` | Preço mais recente de cada produto em cada estabelecimento, separado por usuário. |
 
 A separação entre `produto` e `item_nota` é o que torna a comparação possível. Toda a
 gravação de uma nota ocorre em uma única transação.
@@ -293,13 +337,53 @@ ordem:
    como acontece no retorno do portal.
 4. Sem correspondência, registra-se um produto novo.
 
+## Privacidade e LGPD
+
+O NotaFácil trata dados pessoais (conta e histórico de compras), então segue a Lei nº
+13.709/2018. Esta seção descreve as medidas implementadas e não substitui uma avaliação
+jurídica.
+
+**Política e consentimento.** A política de privacidade fica em `server/src/lgpd/politica.js`,
+é pública em `/privacidade` e `/api/privacidade` e identifica controlador e encarregado,
+dados tratados, finalidade, bases legais, compartilhamento com a Infosimples, transferência
+internacional, retenção, segurança e direitos. O cadastro exige o aceite da versão vigente e o
+consentimento específico para compras que possam revelar dados de saúde (art. 11, I). A
+versão e a data do aceite ficam registradas; quando a política muda de versão, o uso fica
+bloqueado até o novo aceite.
+
+**Direitos do titular (art. 18).**
+
+| Direito | Como exercer | Rota |
+| --- | --- | --- |
+| Acesso e portabilidade | Minha conta > Baixar meus dados (JSON) | `GET /api/conta/exportacao` |
+| Correção | Minha conta > Dados cadastrais | `PATCH /api/conta` |
+| Eliminação de uma compra | Detalhe da nota > Excluir nota | `DELETE /api/notas/:id` |
+| Eliminação total | Minha conta > Excluir conta (com senha) | `DELETE /api/conta` |
+| Informação sobre compartilhamento | Política de privacidade | `GET /api/privacidade` |
+
+**Minimização.** O CPF do consumidor, quando presente no XML ou na resposta do serviço de
+consulta, é descartado antes da gravação (há teste que verifica todas as tabelas). A exportação
+não inclui o hash da senha. Excluir notas ou a conta remove também produtos e estabelecimentos
+que deixaram de ser usados.
+
+**Isolamento.** Notas, produtos, preços por estabelecimento e comparativos são sempre filtrados
+pelo usuário autenticado. Um usuário não consegue ver, nem por ID, compras de outro.
+
+**Segurança (art. 46).** Senha com hash bcrypt e mínimo de 8 caracteres; sessão por token com
+validade de 24 horas, invalidada quando a conta é excluída; login bloqueado após 5 tentativas
+erradas em 15 minutos; CORS restrito às origens configuradas; cabeçalhos HTTP de proteção;
+mensagens de erro interno sem detalhes técnicos; e `JWT_SECRET` obrigatório em produção.
+
+Para publicar o sistema: sirva a API e o cliente por HTTPS, defina `JWT_SECRET` e
+`CORS_ORIGENS` e, se adotar cópias de segurança, mantenha-as cifradas e incluídas na política.
+
 ## Testes
 
 ```bash
 npm --prefix server test
 ```
 
-São 40 casos, executados sobre uma base isolada em diretório temporário:
+São 70 casos, executados sobre uma base isolada em diretório temporário:
 
 | Arquivo | Casos | Cobre |
 | --- | --- | --- |
@@ -307,6 +391,8 @@ São 40 casos, executados sobre uma base isolada em diretório temporário:
 | `comparacao.test.js` | 11 | Classificação da variação de preço, economia possível, recusa de duplicidade, indicadores e identidade do produto. |
 | `provedores.test.js` | 6 | Consulta assistida, links de portais oficiais e cadeia de provedores. |
 | `infosimples.test.js` | 8 | Conversão da resposta real, validação do GTIN, datas, notas canceladas e desvio em caso de falha. |
+| `metricas.test.js` | 17 | Fórmulas do painel, dos produtos, da nota e do comparativo; ordem cronológica da comparação; isolamento entre usuários; exclusão de nota. |
+| `lgpd.test.js` | 13 | Aceite e consentimento no cadastro, política pendente, exportação, correção, exclusão de nota e de conta, descarte do CPF, isolamento pelas rotas, limite de login, CORS e segredo obrigatório em produção. |
 | `openapi.test.js` | 5 | Estrutura da especificação e sincronia com as rotas: falha se uma rota ficar sem documentação ou se a documentação citar rota inexistente. |
 
 Nenhum teste faz chamada paga: a Infosimples é substituída por um duplo que devolve uma
@@ -349,6 +435,9 @@ com os relatados no texto.
 | Leitura por chave devolve o aviso da consulta assistida | Não há `INFOSIMPLES_TOKEN` no `.env`, ou o serviço falhou. Use o link da SEFAZ e importe o XML, ou configure o token. |
 | `Esta nota fiscal já consta no seu histórico` | A chave já foi registrada nessa conta. É a proteção que evita consulta paga repetida. |
 | A câmera não abre na leitura | O navegador exige HTTPS ou `localhost` e permissão de câmera. Use a chave de acesso como alternativa. |
+| `Muitas tentativas de login` (429) | Foram 5 senhas erradas em 15 minutos para o mesmo e-mail. Aguarde o tempo indicado. |
+| Depois de entrar, abre a política de privacidade | A conta ainda não aceitou a versão vigente da política. Leia e aceite para continuar. |
+| API não inicia com `JWT_SECRET é obrigatório em produção` | `NODE_ENV=production` sem `JWT_SECRET`. Defina um segredo longo e aleatório no `.env`. |
 | Base com dados estranhos após testes manuais | Rode `npm --prefix server run seed` para recriar a base de demonstração. |
 
 ## Limitações conhecidas
@@ -364,6 +453,9 @@ com os relatados no texto.
   mas os itens e preços não vêm de documentos autorizados.
 - Produtos a granel com códigos internos do estabelecimento não têm identidade estável
   entre lojas e não são tratados.
+- O limite de tentativas de login fica em memória: vale para uma única instância da API e
+  recomeça quando ela reinicia.
+- Esta versão não mantém cópias de segurança automáticas da base.
 
 ## Licença
 
