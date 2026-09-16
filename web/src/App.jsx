@@ -1,5 +1,6 @@
 import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import Layout from './componentes/Layout.jsx';
+import Comparativo from './paginas/Comparativo.jsx';
 import Conta from './paginas/Conta.jsx';
 import DetalheNota from './paginas/DetalheNota.jsx';
 import DetalheProduto from './paginas/DetalheProduto.jsx';
@@ -45,6 +46,7 @@ export default function App() {
         <Route path="/produtos" element={<Produtos />} />
         <Route path="/produtos/:id" element={<DetalheProduto />} />
         <Route path="/empresas" element={<Empresas />} />
+        <Route path="/comparativo" element={<Comparativo />} />
         <Route path="/conta" element={<Conta />} />
       </Route>
       <Route path="*" element={<Navigate to="/painel" replace />} />

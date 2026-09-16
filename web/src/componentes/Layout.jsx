@@ -7,6 +7,7 @@ const ITENS = [
   { rota: '/notas', rotulo: 'Histórico de notas', icone: '☰' },
   { rota: '/produtos', rotulo: 'Produtos', icone: '◇' },
   { rota: '/empresas', rotulo: 'Estabelecimentos', icone: '⌂' },
+  { rota: '/comparativo', rotulo: 'Comparar lojas', icone: '⇄' },
   { rota: '/conta', rotulo: 'Minha conta', icone: '◎' }
 ];
 

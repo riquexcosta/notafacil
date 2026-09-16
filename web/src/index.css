@@ -386,3 +386,22 @@ button:disabled, .botao:disabled { opacity: 0.55; cursor: not-allowed; filter: n
 .formulario-vertical { display: grid; gap: 13px; }
 .zona-perigo { border-color: #f3c6c2; }
 .zona-perigo h2 { color: var(--vermelho-600); }
+
+/* ----------------------------------------------------------- comparativo */
+
+.rolagem-horizontal { overflow-x: auto; }
+.selecao-lojas { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-top: 14px; font-size: 0.85rem; }
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--borda);
+  border-radius: 999px;
+  padding: 4px 11px;
+  cursor: pointer;
+  background: #fff;
+}
+.chip input { margin: 0; }
+.chip.ativo { border-color: var(--azul-600); background: var(--azul-100); color: var(--azul-700); }
+.celula-menor-preco { background: var(--verde-100); color: var(--verde-600); }
+tfoot th { border-top: 2px solid var(--borda); padding-top: 10px; }

@@ -15,6 +15,7 @@ import {
 } from './domain/nfe/provedores.js';
 import { POLITICA, VERSAO_POLITICA } from './lgpd/politica.js';
 import { cabecalhosDeSeguranca, criarLimitadorDeLogin, origensPermitidas } from './seguranca.js';
+import { compararEstabelecimentos } from './services/comparativoService.js';
 import {
   aceitarPolitica,
   atualizarConta,
@@ -333,6 +334,27 @@ app.get(
   '/api/empresas/:id/produtos',
   exigirAutenticacao,
   rota((req, res) => res.json(produtosPorEmpresa(req.usuarioId, idDaRota(req))))
+);
+
+/* ----------------------------------------------------------- comparativo */
+
+app.get(
+  '/api/comparativo/estabelecimentos',
+  exigirAutenticacao,
+  rota((req, res) => {
+    const data = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use datas no formato AAAA-MM-DD.').optional();
+    const filtros = z
+      .object({
+        dataInicio: data,
+        dataFim: data,
+        empresas: z
+          .string()
+          .optional()
+          .transform((v) => (v ? v.split(',').map(Number).filter((n) => Number.isInteger(n) && n > 0) : undefined))
+      })
+      .parse(req.query);
+    res.json(compararEstabelecimentos(req.usuarioId, filtros));
+  })
 );
 
 /* ------------------------------------------------------------- relatórios */

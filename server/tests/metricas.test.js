@@ -15,6 +15,7 @@ const { excluirNota, importarNota, listarNotas, mesesEntre, obterNota, resumoDoU
 const { buscarProdutos, detalharProduto, produtosPorEmpresa, produtosRecorrentes } = await import(
   '../src/services/produtoService.js'
 );
+const { compararEstabelecimentos } = await import('../src/services/comparativoService.js');
 
 let numero = 0;
 function chave(cnpj) {
@@ -245,3 +246,70 @@ test('excluir uma nota recalcula o preço da loja e remove produtos sem uso', ()
 });
 
 /* ------------------------------------------------------- comparativo */
+
+test('o comparativo usa o preço mais recente de cada loja e calcula a cesta comum', () => {
+  const u = novoUsuario('comparativo@teste');
+  importarNota(u, nota(ATACADO, '2026-09-01', [[ARROZ, 1, 24]])); // substituído pela compra de 10/09
+  importarNota(u, nota(ATACADO, '2026-09-10', [[ARROZ, 1, 25], [LEITE, 6, 4.5], [CAFE, 1, 17]]));
+  importarNota(u, nota(SUPERMERCADO, '2026-09-10', [[ARROZ, 1, 28], [LEITE, 2, 5], [CAFE, 1, 19]]));
+  importarNota(u, nota(MERCADINHO, '2026-09-10', [[ARROZ, 1, 30], [LEITE, 1, 5.5]]));
+
+  const r = compararEstabelecimentos(u, { dataInicio: '2026-09-01', dataFim: '2026-09-30' });
+  const lojaId = (cnpj) => db.prepare('SELECT id FROM empresa WHERE cnpj = ?').get(cnpj).id;
+  const [idAtacado, idSuper, idMercadinho] = [ATACADO, SUPERMERCADO, MERCADINHO].map((l) => lojaId(l.cnpj));
+
+  assert.equal(r.estabelecimentos.length, 3);
+
+  const arroz = r.produtos.find((p) => p.descricao === ARROZ.descricao);
+  assert.equal(arroz.precos[idAtacado].valorUnitario, 25);
+  assert.equal(arroz.menorPreco, 25);
+  assert.equal(arroz.maiorPreco, 30);
+  assert.deepEqual(arroz.empresasMaisBaratas, [idAtacado]);
+  assert.equal(arroz.amplitudePercentual, 20); // (30 − 25) / 25
+  assert.equal(arroz.diferenca, 5);
+
+  const cafe = r.produtos.find((p) => p.descricao === CAFE.descricao);
+  assert.equal(cafe.lojasComPreco, 2);
+
+  // Cesta comum às 3 lojas: arroz e leite (o café não é vendido no mercadinho).
+  assert.equal(r.cesta.produtos.length, 2);
+  const custo = Object.fromEntries(r.cesta.custoPorLoja.map((c) => [c.empresaId, c.total]));
+  assert.equal(custo[idAtacado], 29.5);
+  assert.equal(custo[idSuper], 33);
+  assert.equal(custo[idMercadinho], 35.5);
+  assert.equal(r.cesta.empresaMaisBarata, idAtacado);
+  assert.equal(r.cesta.empresaMaisCara, idMercadinho);
+  assert.equal(r.cesta.economia, 6);
+  assert.equal(r.cesta.economiaPercentual, 16.9); // 6 / 35,5
+});
+
+test('o comparativo respeita o período e as lojas escolhidas', () => {
+  const u = novoUsuario('comparativo-filtro@teste');
+  importarNota(u, nota(ATACADO, '2026-08-01', [[LEITE, 1, 3]]));
+  importarNota(u, nota(SUPERMERCADO, '2026-09-05', [[LEITE, 1, 6]]));
+  importarNota(u, nota(MERCADINHO, '2026-09-06', [[LEITE, 1, 7]]));
+
+  const setembro = compararEstabelecimentos(u, { dataInicio: '2026-09-01' });
+  assert.equal(setembro.estabelecimentos.length, 2);
+  assert.equal(setembro.produtos[0].menorPreco, 6);
+
+  const idSuper = db.prepare('SELECT id FROM empresa WHERE cnpj = ?').get(SUPERMERCADO.cnpj).id;
+  const umaLoja = compararEstabelecimentos(u, { empresas: [idSuper] });
+  assert.equal(umaLoja.produtos.length, 0);
+  assert.equal(umaLoja.estabelecimentos.length, 0);
+  assert.equal(umaLoja.cesta, null);
+});
+
+test('lojas sem produto em comum ficam fora do comparativo e não impedem a cesta', () => {
+  const u = novoUsuario('comparativo-farmacia@teste');
+  const FARMACIA = loja('44444444000191', 'Farmácia');
+  const REMEDIO = { ean: '7896004703398', ncm: '30049099', descricao: 'DIPIRONA 500MG', unidade: 'UN' };
+  importarNota(u, nota(ATACADO, '2026-10-01', [[LEITE, 1, 4]]));
+  importarNota(u, nota(SUPERMERCADO, '2026-10-01', [[LEITE, 1, 5]]));
+  importarNota(u, nota(FARMACIA, '2026-10-01', [[REMEDIO, 1, 9]]));
+
+  const r = compararEstabelecimentos(u, { dataInicio: '2026-10-01' });
+  assert.deepEqual(r.estabelecimentos.map((l) => l.nome).sort(), ['Atacado', 'Supermercado']);
+  assert.equal(r.cesta.produtos.length, 1);
+  assert.equal(r.cesta.economia, 1);
+});

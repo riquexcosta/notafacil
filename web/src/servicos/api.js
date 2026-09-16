@@ -83,6 +83,8 @@ export const api = {
   listarEmpresas: () => requisitar('/empresas'),
   produtosDaEmpresa: (id) => requisitar(`/empresas/${id}/produtos`),
 
+  compararEstabelecimentos: (filtros) => requisitar(comQuery('/comparativo/estabelecimentos', filtros)),
+
   resumo: () => requisitar('/relatorios/resumo')
 };
 

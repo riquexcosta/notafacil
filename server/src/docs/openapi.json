@@ -960,6 +960,59 @@
         }
       }
     },
+    "/api/comparativo/estabelecimentos": {
+      "get": {
+        "tags": [
+          "Comparativo"
+        ],
+        "summary": "Compara os preços pagos pelo mesmo produto em estabelecimentos diferentes",
+        "description": "Preço na loja: compra mais recente do produto naquela loja, no período. Produto comparado: com preço em 2 ou mais lojas. Amplitude: (maior − menor) / menor × 100. Cesta comum: produtos com preço em todas as lojas; custo = soma do preço de uma unidade de cada produto. Economia: custo na loja mais cara − custo na mais barata.",
+        "parameters": [
+          {
+            "name": "dataInicio",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "dataFim",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "empresas",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "IDs separados por vírgula."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Comparativo do período",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Comparativo"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NaoAutorizado"
+          },
+          "422": {
+            "$ref": "#/components/responses/DadosInvalidos"
+          }
+        }
+      }
+    },
     "/api/relatorios/resumo": {
       "get": {
         "tags": [
@@ -1793,6 +1846,153 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/NotaResumo"
+            }
+          }
+        }
+      },
+      "Comparativo": {
+        "type": "object",
+        "properties": {
+          "periodo": {
+            "type": "object",
+            "properties": {
+              "dataInicio": {
+                "type": "string",
+                "nullable": true
+              },
+              "dataFim": {
+                "type": "string",
+                "nullable": true
+              }
+            }
+          },
+          "estabelecimentos": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "nome": {
+                  "type": "string"
+                },
+                "cnpj": {
+                  "type": "string"
+                },
+                "municipio": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "uf": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "produtosComMenorPreco": {
+                  "type": "integer"
+                }
+              }
+            }
+          },
+          "produtos": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "produtoId": {
+                  "type": "integer"
+                },
+                "descricao": {
+                  "type": "string"
+                },
+                "ean": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "unidade": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "precos": {
+                  "type": "object",
+                  "description": "Mapa do ID do estabelecimento para o preço da compra mais recente no período.",
+                  "additionalProperties": {
+                    "type": "object",
+                    "properties": {
+                      "valorUnitario": {
+                        "type": "number"
+                      },
+                      "dataEmissao": {
+                        "type": "string",
+                        "format": "date"
+                      },
+                      "notaId": {
+                        "type": "integer"
+                      }
+                    }
+                  }
+                },
+                "lojasComPreco": {
+                  "type": "integer"
+                },
+                "menorPreco": {
+                  "type": "number"
+                },
+                "maiorPreco": {
+                  "type": "number"
+                },
+                "empresasMaisBaratas": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  }
+                },
+                "diferenca": {
+                  "type": "number"
+                },
+                "amplitudePercentual": {
+                  "type": "number"
+                }
+              }
+            }
+          },
+          "cesta": {
+            "type": "object",
+            "nullable": true,
+            "properties": {
+              "produtos": {
+                "type": "array",
+                "items": {
+                  "type": "integer"
+                }
+              },
+              "custoPorLoja": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "properties": {
+                    "empresaId": {
+                      "type": "integer"
+                    },
+                    "total": {
+                      "type": "number"
+                    }
+                  }
+                }
+              },
+              "empresaMaisBarata": {
+                "type": "integer"
+              },
+              "empresaMaisCara": {
+                "type": "integer"
+              },
+              "economia": {
+                "type": "number"
+              },
+              "economiaPercentual": {
+                "type": "number",
+                "description": "Economia / custo na loja mais cara × 100."
+              }
             }
           }
         }
