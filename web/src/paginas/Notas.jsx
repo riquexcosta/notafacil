@@ -7,11 +7,11 @@ const FILTROS_INICIAIS = { busca: '', chave: '', dataInicio: '', dataFim: '' };
 
 export default function Notas() {
   const [filtros, setFiltros] = useState(FILTROS_INICIAIS);
-  const [notas, setNotas] = useState(null);
+  const [listagem, setListagem] = useState(null);
   const [erro, setErro] = useState(null);
 
   function carregar(f = filtros) {
-    api.listarNotas(f).then(setNotas).catch((e) => setErro(e.message));
+    api.listarNotas(f).then(setListagem).catch((e) => setErro(e.message));
   }
 
   useEffect(() => {
@@ -20,7 +20,7 @@ export default function Notas() {
 
   const alterar = (campo) => (e) => setFiltros({ ...filtros, [campo]: e.target.value });
 
-  const total = notas?.reduce((s, n) => s + n.valorTotal, 0) ?? 0;
+  const notas = listagem?.notas;
 
   return (
     <>
@@ -80,10 +80,20 @@ export default function Notas() {
 
       <div className="cartao">
         <div className="barra-acoes" style={{ marginBottom: 10 }}>
-          <h2>{notas ? `${notas.length} notas encontradas` : 'Carregando…'}</h2>
+          <h2>{listagem ? `${listagem.quantidade} notas encontradas` : 'Carregando…'}</h2>
           <div className="espaco" />
-          <span className="fraco">Total: {moeda(total)}</span>
+          {listagem && (
+            <span className="fraco">
+              Total: {moeda(listagem.valorTotal)} · tributos: {moeda(listagem.valorTributos)}
+            </span>
+          )}
         </div>
+        {listagem && listagem.quantidade > notas.length && (
+          <div className="aviso informacao" style={{ marginBottom: 10 }}>
+            Exibindo as {notas.length} notas mais recentes. Quantidade e totais consideram todas as{' '}
+            {listagem.quantidade}; use os filtros para refinar a lista.
+          </div>
+        )}
 
         {notas?.length === 0 ? (
           <Vazio>Nenhuma nota corresponde aos filtros informados.</Vazio>

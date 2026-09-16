@@ -9,7 +9,7 @@ import {
   XAxis,
   YAxis
 } from 'recharts';
-import { api, dataBr, moeda } from '../servicos/api.js';
+import { api, dataBr, moeda, percentual } from '../servicos/api.js';
 import { Cabecalho, Vazio } from '../componentes/comuns.jsx';
 
 export default function DetalheProduto() {
@@ -54,14 +54,19 @@ export default function DetalheProduto() {
           <div className="cartao indicador">
             <span className="rotulo">Compras registradas</span>
             <span className="valor">{estatisticas.compras}</span>
+            <span className="apoio">notas com este produto</span>
           </div>
           <div className="cartao indicador">
-            <span className="rotulo">Menor preço pago</span>
-            <span className="valor">{moeda(estatisticas.menorPreco)}</span>
+            <span className="rotulo">Menor e maior preço</span>
+            <span className="valor" style={{ fontSize: '1.25rem' }}>
+              {moeda(estatisticas.menorPreco)} a {moeda(estatisticas.maiorPreco)}
+            </span>
+            <span className="apoio">amplitude de {percentual(estatisticas.amplitudePercentual)}</span>
           </div>
           <div className="cartao indicador">
-            <span className="rotulo">Preço médio</span>
+            <span className="rotulo">Preço médio pago</span>
             <span className="valor">{moeda(estatisticas.precoMedio)}</span>
+            <span className="apoio">total gasto ÷ quantidade comprada</span>
           </div>
           <div className="cartao indicador">
             <span className="rotulo">Variação no período</span>
@@ -70,7 +75,7 @@ export default function DetalheProduto() {
               style={{ color: estatisticas.variacaoPercentual > 0 ? '#b3261e' : '#10796b' }}
             >
               {estatisticas.variacaoPercentual > 0 ? '+' : ''}
-              {estatisticas.variacaoPercentual}%
+              {percentual(estatisticas.variacaoPercentual)}
             </span>
             <span className="apoio">da primeira à última compra</span>
           </div>
@@ -120,7 +125,7 @@ export default function DetalheProduto() {
         <div className="cartao">
           <h2>Onde está mais barato</h2>
           <p className="legenda">
-            Preço mais recente praticado por cada estabelecimento, conforme as notas importadas.
+            Preço da sua compra mais recente em cada estabelecimento. Só entram as suas notas.
           </p>
           <table>
             <thead>

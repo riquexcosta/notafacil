@@ -1,29 +1,61 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { api, dataBr, mascararChave, moeda } from '../servicos/api.js';
+import { Link, useNavigate, useParams } from 'react-router-dom';
+import { api, dataBr, mascararChave, moeda, percentual } from '../servicos/api.js';
 import { Cabecalho, EtiquetaSituacao, Vazio } from '../componentes/comuns.jsx';
+
+const ORIGENS = {
+  qrcode: 'QR Code',
+  xml: 'XML autorizado',
+  infosimples: 'SEFAZ (Infosimples)',
+  demo: 'Catálogo local',
+  manual: 'Manual'
+};
 
 export default function DetalheNota() {
   const { id } = useParams();
+  const navegar = useNavigate();
   const [nota, setNota] = useState(null);
   const [erro, setErro] = useState(null);
+  const [excluindo, setExcluindo] = useState(false);
 
   useEffect(() => {
     api.obterNota(id).then(setNota).catch((e) => setErro(e.message));
   }, [id]);
 
+  async function excluir() {
+    const confirmado = window.confirm(
+      'Excluir esta nota? Os itens e os preços registrados por ela serão apagados, e a comparação das outras notas será recalculada.'
+    );
+    if (!confirmado) return;
+    setExcluindo(true);
+    try {
+      await api.excluirNota(id);
+      navegar('/notas', { replace: true });
+    } catch (e) {
+      setErro(e.message);
+      setExcluindo(false);
+    }
+  }
+
   if (erro) return <div className="aviso erro">{erro}</div>;
   if (!nota) return <Vazio>Carregando nota…</Vazio>;
+
+  const emitidaEm = `${dataBr(nota.dataEmissao)}${nota.horaEmissao ? ` às ${nota.horaEmissao.slice(0, 5)}` : ''}`;
 
   return (
     <>
       <Cabecalho
         titulo={nota.nomeFantasia ?? nota.razaoSocial}
-        descricao={`Nota ${nota.numero}, série ${nota.serie} · emitida em ${dataBr(nota.dataEmissao)}`}
+        descricao={`Nota ${nota.numero}, série ${nota.serie} · emitida em ${emitidaEm}`}
         acoes={
-          <Link className="botao botao-secundario" to="/notas">
-            Voltar ao histórico
-          </Link>
+          <>
+            <button type="button" className="botao-perigo" onClick={excluir} disabled={excluindo}>
+              {excluindo ? 'Excluindo…' : 'Excluir nota'}
+            </button>
+            <Link className="botao botao-secundario" to="/notas">
+              Voltar ao histórico
+            </Link>
+          </>
         }
       />
 
@@ -36,9 +68,7 @@ export default function DetalheNota() {
           <span className="rotulo">Tributos</span>
           <span className="valor">{moeda(nota.valorTributos)}</span>
           <span className="apoio">
-            {nota.valorTotal > 0
-              ? `${((nota.valorTributos / nota.valorTotal) * 100).toFixed(1)}% do total`
-              : '—'}
+            {nota.percentualTributos === null ? '—' : `${percentual(nota.percentualTributos)} do total`}
           </span>
         </div>
         <div className="cartao indicador">
@@ -48,9 +78,7 @@ export default function DetalheNota() {
         <div className="cartao indicador">
           <span className="rotulo">Origem</span>
           <span className="valor" style={{ fontSize: '1.1rem' }}>
-            {{ qrcode: 'QR Code', xml: 'XML autorizado', infosimples: 'SEFAZ (Infosimples)', demo: 'Catálogo local', manual: 'Manual' }[
-              nota.origem
-            ] ?? nota.origem}
+            {ORIGENS[nota.origem] ?? nota.origem}
           </span>
         </div>
       </div>
@@ -73,7 +101,7 @@ export default function DetalheNota() {
           <div>
             <span className="rotulo">Município</span>
             <span className="conteudo">
-              {nota.municipio}/{nota.uf}
+              {nota.municipio ?? '—'}/{nota.uf ?? '—'}
             </span>
           </div>
         </div>
@@ -85,7 +113,8 @@ export default function DetalheNota() {
       <div className="cartao">
         <h2>Itens e comparação de preços</h2>
         <p className="legenda">
-          O preço anterior considera a última compra do mesmo produto em qualquer estabelecimento.
+          Cada item é comparado com a sua compra anterior mais recente do mesmo produto, em qualquer estabelecimento.
+          Compras posteriores a esta nota não entram na comparação.
         </p>
         <table>
           <thead>
@@ -96,7 +125,7 @@ export default function DetalheNota() {
               <th className="num">Total</th>
               <th className="num">Anterior</th>
               <th>Comparação</th>
-              <th className="num">Compras</th>
+              <th className="num">Compra nº</th>
             </tr>
           </thead>
           <tbody>
@@ -115,7 +144,14 @@ export default function DetalheNota() {
                 </td>
                 <td className="num">{moeda(item.valorUnitario)}</td>
                 <td className="num">{moeda(item.valorTotal)}</td>
-                <td className="num fraco">{item.precoAnterior ? moeda(item.precoAnterior) : '—'}</td>
+                <td className="num fraco">
+                  {item.precoAnterior ? moeda(item.precoAnterior) : '—'}
+                  {item.empresaAnterior && (
+                    <div style={{ fontSize: '0.72rem' }}>
+                      {item.empresaAnterior}, {dataBr(item.dataAnterior)}
+                    </div>
+                  )}
+                </td>
                 <td>
                   <EtiquetaSituacao situacao={item.situacao} variacao={item.variacaoPercentual} />
                 </td>

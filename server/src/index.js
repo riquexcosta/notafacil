@@ -3,7 +3,6 @@ import express from 'express';
 import cors from 'cors';
 import { z } from 'zod';
 
-import { db } from './db/index.js';
 import { entrar, exigirAutenticacao, registrar } from './auth.js';
 import { extrairChave, interpretarChave, validarChave, formatarCnpj } from './domain/chaveAcesso.js';
 import {
@@ -16,6 +15,7 @@ import {
 } from './domain/nfe/provedores.js';
 import {
   compararComHistorico,
+  excluirNota,
   garantirNotaInedita,
   importarNota,
   listarEmpresas,
@@ -25,7 +25,7 @@ import {
 } from './services/notaService.js';
 import {
   buscarProdutos,
-  historicoDoProduto,
+  detalharProduto,
   produtosPorEmpresa,
   produtosRecorrentes
 } from './services/produtoService.js';
@@ -53,6 +53,7 @@ const provedorConsulta = new CadeiaDeProvedores(
 const provedorXml = new ProvedorXmlAutorizado();
 
 const rota = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
+const idDaRota = (req) => z.coerce.number().int().positive().parse(req.params.id);
 
 app.get('/api/saude', (_req, res) => res.json({ status: 'ok', versao: '1.0.0' }));
 
@@ -139,7 +140,12 @@ app.post(
     const conteudo = typeof req.body === 'string' ? req.body : req.body?.xml;
     if (!conteudo) return res.status(422).json({ erro: 'Envie o XML de autorização da nota.' });
 
-    const nota = await provedorXml.consultarPorXml(conteudo);
+    let nota;
+    try {
+      nota = await provedorXml.consultarPorXml(conteudo);
+    } catch (erro) {
+      return res.status(422).json({ erro: `Não foi possível ler o XML da nota: ${erro.message}` });
+    }
     if (!validarChave(nota.chave)) {
       return res.status(422).json({ erro: 'A chave contida no XML é inválida.' });
     }
@@ -159,16 +165,31 @@ app.get(
   '/api/notas/:id',
   exigirAutenticacao,
   rota((req, res) => {
-    const nota = obterNota(req.usuarioId, Number(req.params.id));
+    const nota = obterNota(req.usuarioId, idDaRota(req));
     if (!nota) return res.status(404).json({ erro: 'Nota não encontrada.' });
     res.json({ ...nota, cnpjFormatado: formatarCnpj(nota.cnpj) });
+  })
+);
+
+app.delete(
+  '/api/notas/:id',
+  exigirAutenticacao,
+  rota((req, res) => {
+    if (!excluirNota(req.usuarioId, idDaRota(req))) {
+      return res.status(404).json({ erro: 'Nota não encontrada.' });
+    }
+    res.status(204).end();
   })
 );
 
 app.get(
   '/api/notas/:id/comparacao',
   exigirAutenticacao,
-  rota((req, res) => res.json(compararComHistorico(req.usuarioId, Number(req.params.id))))
+  rota((req, res) => {
+    const itens = compararComHistorico(req.usuarioId, idDaRota(req));
+    if (!itens) return res.status(404).json({ erro: 'Nota não encontrada.' });
+    res.json(itens);
+  })
 );
 
 /* --------------------------------------------------------------- produtos */
@@ -191,41 +212,9 @@ app.get(
   '/api/produtos/:id/historico',
   exigirAutenticacao,
   rota((req, res) => {
-    const produtoId = Number(req.params.id);
-    const produto = db.prepare('SELECT * FROM produto WHERE id = ?').get(produtoId);
-    if (!produto) return res.status(404).json({ erro: 'Produto não encontrado.' });
-
-    const historico = historicoDoProduto(req.usuarioId, produtoId);
-    const precos = historico.map((h) => h.valorUnitario);
-
-    // Preço mais recente do mesmo produto em cada estabelecimento conhecido
-    const ofertas = db
-      .prepare(
-        `SELECT e.id, e.nome_fantasia AS empresa, e.razao_social AS razaoSocial, e.municipio, e.uf,
-                pep.valor_unitario AS valorUnitario, pep.data_referencia AS dataReferencia
-           FROM preco_empresa_produto pep
-           JOIN empresa e ON e.id = pep.empresa_id
-          WHERE pep.produto_id = ?
-          ORDER BY pep.valor_unitario ASC`
-      )
-      .all(produtoId);
-
-    res.json({
-      produto,
-      historico,
-      ofertas,
-      estatisticas: precos.length
-        ? {
-            compras: precos.length,
-            menorPreco: Math.min(...precos),
-            maiorPreco: Math.max(...precos),
-            precoMedio: Number((precos.reduce((s, v) => s + v, 0) / precos.length).toFixed(2)),
-            variacaoPercentual: Number(
-              (((precos[precos.length - 1] - precos[0]) / precos[0]) * 100).toFixed(1)
-            )
-          }
-        : null
-    });
+    const detalhe = detalharProduto(req.usuarioId, idDaRota(req));
+    if (!detalhe) return res.status(404).json({ erro: 'Produto não encontrado no seu histórico.' });
+    res.json(detalhe);
   })
 );
 
@@ -240,7 +229,7 @@ app.get(
 app.get(
   '/api/empresas/:id/produtos',
   exigirAutenticacao,
-  rota((req, res) => res.json(produtosPorEmpresa(Number(req.params.id))))
+  rota((req, res) => res.json(produtosPorEmpresa(req.usuarioId, idDaRota(req))))
 );
 
 /* ------------------------------------------------------------- relatórios */

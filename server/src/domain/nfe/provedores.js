@@ -23,6 +23,12 @@ const parser = new XMLParser({
 const numero = (v) => (v === undefined || v === null || v === '' ? 0 : Number(v));
 const lista = (v) => (Array.isArray(v) ? v : v ? [v] : []);
 
+/** Hora HH:MM:SS a partir de "HH:MM", "HH:MM:SS" ou de um carimbo ISO; null se ausente. */
+function horaDe(valor) {
+  const achado = String(valor ?? '').match(/(?:^|T)(\d{2}):(\d{2})(?::(\d{2}))?/);
+  return achado ? `${achado[1]}:${achado[2]}:${achado[3] ?? '00'}` : null;
+}
+
 /** Normaliza um GTIN: a SEFAZ usa "SEM GTIN" quando o produto não possui código. */
 function normalizarEan(valor) {
   const d = somenteDigitos(valor);
@@ -45,6 +51,7 @@ export class ProvedorXmlAutorizado {
     if (!nfe) throw new Error('XML não contém um elemento <NFe>.');
 
     const inf = nfe.infNFe ?? nfe.infnfe;
+    if (!inf) throw new Error('XML não contém o grupo <infNFe>.');
     const ide = inf.ide ?? {};
     const emit = inf.emit ?? {};
     const ender = emit.enderEmit ?? {};
@@ -74,6 +81,7 @@ export class ProvedorXmlAutorizado {
       serie: String(ide.serie ?? ''),
       modelo: String(ide.mod ?? ''),
       dataEmissao: String(ide.dhEmi ?? ide.dEmi ?? '').slice(0, 10),
+      horaEmissao: ide.dhEmi ? horaDe(String(ide.dhEmi)) : null,
       valorTotal: numero(total.vNF),
       valorTributos: numero(total.vTotTrib),
       emitente: {
@@ -196,6 +204,7 @@ export class ProvedorInfosimples {
       serie: String(info.serie ?? meta.serie),
       modelo: meta.modelo,
       dataEmissao,
+      horaEmissao: horaDe(info.hora_emissao),
       valorTotal: numero(dados.normalizado_valor_a_pagar ?? dados.normalizado_valor_total),
       valorTributos: numero(dados.normalizado_tributos_totais),
       emitente: {

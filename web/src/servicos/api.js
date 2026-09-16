@@ -42,18 +42,19 @@ const comQuery = (caminho, params = {}) => {
   return query ? `${caminho}?${query}` : caminho;
 };
 
-export const api = {
-  cadastrar: (dados) =>
-    requisitar('/auth/cadastro', { method: 'POST', body: JSON.stringify(dados) }),
-  entrar: (dados) => requisitar('/auth/login', { method: 'POST', body: JSON.stringify(dados) }),
+const json = (metodo, corpo) => ({ method: metodo, body: JSON.stringify(corpo) });
 
-  lerQrCode: (conteudo) =>
-    requisitar('/notas/qrcode', { method: 'POST', body: JSON.stringify({ conteudo }) }),
+export const api = {
+  cadastrar: (dados) => requisitar('/auth/cadastro', json('POST', dados)),
+  entrar: (dados) => requisitar('/auth/login', json('POST', dados)),
+
+  lerQrCode: (conteudo) => requisitar('/notas/qrcode', json('POST', { conteudo })),
   enviarXml: (xml) =>
     requisitar('/notas/xml', { method: 'POST', headers: { 'Content-Type': 'application/xml' }, body: xml }),
 
   listarNotas: (filtros) => requisitar(comQuery('/notas', filtros)),
   obterNota: (id) => requisitar(`/notas/${id}`),
+  excluirNota: (id) => requisitar(`/notas/${id}`, { method: 'DELETE' }),
 
   buscarProdutos: (filtros) => requisitar(comQuery('/produtos', filtros)),
   produtosRecorrentes: () => requisitar('/produtos/recorrentes'),
@@ -67,6 +68,11 @@ export const api = {
 
 export const moeda = (valor) =>
   (valor ?? 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+
+export const percentual = (valor, casas = 1) =>
+  valor === null || valor === undefined
+    ? '—'
+    : `${Number(valor).toLocaleString('pt-BR', { minimumFractionDigits: casas, maximumFractionDigits: casas })}%`;
 
 export const dataBr = (iso) => {
   if (!iso) return '—';

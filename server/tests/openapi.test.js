@@ -10,7 +10,7 @@ const FONTE = fs.readFileSync(new URL('../src/index.js', import.meta.url), 'utf8
 /** Rotas declaradas no Express, com os parâmetros no formato do OpenAPI. */
 function rotasDoServidor() {
   const rotas = new Set();
-  for (const achado of FONTE.matchAll(/app\.(get|post)\(\s*'([^']+)'/g)) {
+  for (const achado of FONTE.matchAll(/app\.(get|post|put|patch|delete)\(\s*'([^']+)'/g)) {
     rotas.add(`${achado[1]} ${achado[2].replace(/:(\w+)/g, '{$1}')}`);
   }
   return rotas;
@@ -42,7 +42,14 @@ test('a especificação não documenta rota inexistente', () => {
 });
 
 test('as rotas autenticadas exigem token e as públicas não', () => {
-  const publicas = ['/api/saude', '/api/docs', '/api/openapi.json', '/api/auth/cadastro', '/api/auth/login'];
+  const publicas = [
+    '/api/saude',
+    '/api/docs',
+    '/api/openapi.json',
+    '/api/privacidade',
+    '/api/auth/cadastro',
+    '/api/auth/login'
+  ];
   for (const [caminho, metodos] of Object.entries(ESPECIFICACAO.paths)) {
     for (const operacao of Object.values(metodos)) {
       if (publicas.includes(caminho)) {

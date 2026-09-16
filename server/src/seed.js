@@ -61,6 +61,9 @@ function gerarNota({ empresaIndice, indiceMes, numero }) {
 
   const data = new Date(Date.UTC(2026, 2 + indiceMes, 3 + Math.floor(aleatorio() * 25)));
   const dataEmissao = data.toISOString().slice(0, 10);
+  // Hora derivada do número da nota, sem consumir o gerador pseudoaleatório:
+  // assim os valores da base continuam os mesmos de antes.
+  const horaEmissao = `${String(8 + (numero % 13)).padStart(2, '0')}:${String((numero * 7) % 60).padStart(2, '0')}:00`;
 
   const itens = escolhidos.map((idx) => {
     const produto = produtos[idx];
@@ -95,6 +98,7 @@ function gerarNota({ empresaIndice, indiceMes, numero }) {
     serie: '1',
     modelo: '65',
     dataEmissao,
+    horaEmissao,
     valorTotal: Number(itens.reduce((s, i) => s + i.valorTotal, 0).toFixed(2)),
     valorTributos: Number(itens.reduce((s, i) => s + i.valorTributos, 0).toFixed(2)),
     emitente: empresa,

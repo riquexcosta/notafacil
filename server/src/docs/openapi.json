@@ -3,22 +3,57 @@
   "info": {
     "title": "NotaFácil API",
     "version": "1.0.0",
-    "description": "API do NotaFácil: registro de notas fiscais eletrônicas de consumo e comparação do histórico de preços do próprio usuário.\n\nO registro ocorre por três caminhos: leitura do QR Code, digitação da chave de acesso e importação do XML autorizado. Quando a consulta automática não está disponível, a API responde 422 com o código `CONSULTA_ASSISTIDA` e o endereço da consulta oficial da SEFAZ.",
-    "license": { "name": "MIT" }
+    "description": "API do NotaFácil: registro de notas fiscais eletrônicas de consumo e comparação do histórico de preços do próprio usuário.\n\nO registro ocorre por três caminhos: leitura do QR Code, digitação da chave de acesso e importação do XML autorizado. Quando a consulta automática não está disponível, a API responde 422 com o código `CONSULTA_ASSISTIDA` e o endereço da consulta oficial da SEFAZ.\n\nTodas as consultas são restritas ao usuário autenticado: notas, produtos, preços por estabelecimento e comparativos nunca incluem compras de outros usuários. As rotas de conta implementam os direitos do titular previstos na LGPD (art. 18).",
+    "license": {
+      "name": "MIT"
+    }
   },
-  "servers": [{ "url": "http://localhost:3333", "description": "Ambiente local" }],
+  "servers": [
+    {
+      "url": "http://localhost:3333",
+      "description": "Ambiente local"
+    }
+  ],
   "tags": [
-    { "name": "Autenticação", "description": "Criação de conta e entrada no sistema." },
-    { "name": "Notas", "description": "Registro e consulta de notas fiscais." },
-    { "name": "Produtos", "description": "Busca, recorrência e histórico de preços." },
-    { "name": "Empresas", "description": "Estabelecimentos emitentes." },
-    { "name": "Relatórios", "description": "Indicadores consolidados." },
-    { "name": "Serviço", "description": "Disponibilidade e documentação." }
+    {
+      "name": "Autenticação",
+      "description": "Criação de conta e entrada no sistema."
+    },
+    {
+      "name": "Conta e privacidade",
+      "description": "Política de privacidade, consentimento e direitos do titular (LGPD)."
+    },
+    {
+      "name": "Notas",
+      "description": "Registro e consulta de notas fiscais."
+    },
+    {
+      "name": "Produtos",
+      "description": "Busca, recorrência e histórico de preços."
+    },
+    {
+      "name": "Empresas",
+      "description": "Estabelecimentos emitentes."
+    },
+    {
+      "name": "Comparativo",
+      "description": "Comparação de preços entre estabelecimentos."
+    },
+    {
+      "name": "Relatórios",
+      "description": "Indicadores consolidados."
+    },
+    {
+      "name": "Serviço",
+      "description": "Disponibilidade e documentação."
+    }
   ],
   "paths": {
     "/api/saude": {
       "get": {
-        "tags": ["Serviço"],
+        "tags": [
+          "Serviço"
+        ],
         "summary": "Verifica a disponibilidade da API",
         "security": [],
         "responses": {
@@ -28,9 +63,19 @@
               "application/json": {
                 "schema": {
                   "type": "object",
-                  "properties": { "status": { "type": "string" }, "versao": { "type": "string" } }
+                  "properties": {
+                    "status": {
+                      "type": "string"
+                    },
+                    "versao": {
+                      "type": "string"
+                    }
+                  }
                 },
-                "example": { "status": "ok", "versao": "1.0.0" }
+                "example": {
+                  "status": "ok",
+                  "versao": "1.0.0"
+                }
               }
             }
           }
@@ -39,23 +84,37 @@
     },
     "/api/docs": {
       "get": {
-        "tags": ["Serviço"],
+        "tags": [
+          "Serviço"
+        ],
         "summary": "Interface do Swagger UI",
         "security": [],
-        "responses": { "200": { "description": "Página HTML com a documentação navegável" } }
+        "responses": {
+          "200": {
+            "description": "Página HTML com a documentação navegável"
+          }
+        }
       }
     },
     "/api/openapi.json": {
       "get": {
-        "tags": ["Serviço"],
+        "tags": [
+          "Serviço"
+        ],
         "summary": "Especificação OpenAPI desta API",
         "security": [],
-        "responses": { "200": { "description": "Documento OpenAPI 3.0" } }
+        "responses": {
+          "200": {
+            "description": "Documento OpenAPI 3.0"
+          }
+        }
       }
     },
     "/api/auth/cadastro": {
       "post": {
-        "tags": ["Autenticação"],
+        "tags": [
+          "Autenticação"
+        ],
         "summary": "Cria uma conta",
         "security": [],
         "requestBody": {
@@ -64,30 +123,59 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["nome", "email", "senha"],
+                "required": [
+                  "nome",
+                  "email",
+                  "senha"
+                ],
                 "properties": {
-                  "nome": { "type": "string", "minLength": 2 },
-                  "email": { "type": "string", "format": "email" },
-                  "senha": { "type": "string", "minLength": 6 }
+                  "nome": {
+                    "type": "string",
+                    "minLength": 2
+                  },
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "senha": {
+                    "type": "string",
+                    "minLength": 6
+                  }
                 }
               },
-              "example": { "nome": "Maria Souza", "email": "maria@exemplo.com", "senha": "segredo123" }
+              "example": {
+                "nome": "Maria Souza",
+                "email": "maria@exemplo.com",
+                "senha": "segredo123"
+              }
             }
           }
         },
         "responses": {
           "201": {
             "description": "Conta criada, já autenticada",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Autenticacao" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Autenticacao"
+                }
+              }
+            }
           },
-          "409": { "$ref": "#/components/responses/Conflito" },
-          "422": { "$ref": "#/components/responses/DadosInvalidos" }
+          "409": {
+            "$ref": "#/components/responses/Conflito"
+          },
+          "422": {
+            "$ref": "#/components/responses/DadosInvalidos"
+          }
         }
       }
     },
     "/api/auth/login": {
       "post": {
-        "tags": ["Autenticação"],
+        "tags": [
+          "Autenticação"
+        ],
         "summary": "Entra no sistema",
         "security": [],
         "requestBody": {
@@ -96,29 +184,52 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["email", "senha"],
+                "required": [
+                  "email",
+                  "senha"
+                ],
                 "properties": {
-                  "email": { "type": "string", "format": "email" },
-                  "senha": { "type": "string" }
+                  "email": {
+                    "type": "string",
+                    "format": "email"
+                  },
+                  "senha": {
+                    "type": "string"
+                  }
                 }
               },
-              "example": { "email": "demo@notafacil.app", "senha": "demo1234" }
+              "example": {
+                "email": "demo@notafacil.app",
+                "senha": "demo1234"
+              }
             }
           }
         },
         "responses": {
           "200": {
             "description": "Token de sessão, válido por sete dias",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Autenticacao" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Autenticacao"
+                }
+              }
+            }
           },
-          "401": { "$ref": "#/components/responses/NaoAutorizado" },
-          "422": { "$ref": "#/components/responses/DadosInvalidos" }
+          "401": {
+            "$ref": "#/components/responses/NaoAutorizado"
+          },
+          "422": {
+            "$ref": "#/components/responses/DadosInvalidos"
+          }
         }
       }
     },
     "/api/notas/qrcode": {
       "post": {
-        "tags": ["Notas"],
+        "tags": [
+          "Notas"
+        ],
         "summary": "Registra uma nota pelo QR Code ou pela chave de acesso",
         "description": "Aceita os 44 dígitos da chave, a chave com separadores ou a URL completa gravada no QR Code. A chave é validada pelo módulo 11 antes de qualquer consulta, e a duplicidade é verificada antes da consulta paga.",
         "requestBody": {
@@ -127,10 +238,19 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "required": ["conteudo"],
-                "properties": { "conteudo": { "type": "string", "description": "Chave de acesso ou conteúdo lido do QR Code." } }
+                "required": [
+                  "conteudo"
+                ],
+                "properties": {
+                  "conteudo": {
+                    "type": "string",
+                    "description": "Chave de acesso ou conteúdo lido do QR Code."
+                  }
+                }
               },
-              "example": { "conteudo": "25260307526557000100650010000010011101371370" }
+              "example": {
+                "conteudo": "25260307526557000100650010000010011101371370"
+              }
             }
           }
         },
@@ -142,25 +262,39 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "notaId": { "type": "integer" },
-                    "chaveInterpretada": { "$ref": "#/components/schemas/ChaveInterpretada" },
-                    "nota": { "$ref": "#/components/schemas/NotaDetalhe" }
+                    "notaId": {
+                      "type": "integer"
+                    },
+                    "chaveInterpretada": {
+                      "$ref": "#/components/schemas/ChaveInterpretada"
+                    },
+                    "nota": {
+                      "$ref": "#/components/schemas/NotaDetalhe"
+                    }
                   }
                 }
               }
             }
           },
-          "401": { "$ref": "#/components/responses/NaoAutorizado" },
-          "409": { "$ref": "#/components/responses/Conflito" },
+          "401": {
+            "$ref": "#/components/responses/NaoAutorizado"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflito"
+          },
           "422": {
             "description": "Chave inválida, nota cancelada ou consulta automática indisponível",
             "content": {
               "application/json": {
-                "schema": { "$ref": "#/components/schemas/Erro" },
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                },
                 "examples": {
                   "chaveInvalida": {
                     "summary": "Dígito verificador não confere",
-                    "value": { "erro": "Chave de acesso inválida: o dígito verificador não confere." }
+                    "value": {
+                      "erro": "Chave de acesso inválida: o dígito verificador não confere."
+                    }
                   },
                   "consultaAssistida": {
                     "summary": "Portal exige verificação humana",
@@ -179,15 +313,28 @@
     },
     "/api/notas/xml": {
       "post": {
-        "tags": ["Notas"],
+        "tags": [
+          "Notas"
+        ],
         "summary": "Registra uma nota a partir do XML autorizado",
         "description": "O XML pode ser enviado como corpo `application/xml` ou dentro do campo `xml` de um JSON.",
         "requestBody": {
           "required": true,
           "content": {
-            "application/xml": { "schema": { "type": "string" } },
+            "application/xml": {
+              "schema": {
+                "type": "string"
+              }
+            },
             "application/json": {
-              "schema": { "type": "object", "properties": { "xml": { "type": "string" } } }
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "xml": {
+                    "type": "string"
+                  }
+                }
+              }
             }
           }
         },
@@ -199,107 +346,248 @@
                 "schema": {
                   "type": "object",
                   "properties": {
-                    "notaId": { "type": "integer" },
-                    "nota": { "$ref": "#/components/schemas/NotaDetalhe" }
+                    "notaId": {
+                      "type": "integer"
+                    },
+                    "nota": {
+                      "$ref": "#/components/schemas/NotaDetalhe"
+                    }
                   }
                 }
               }
             }
           },
-          "401": { "$ref": "#/components/responses/NaoAutorizado" },
-          "409": { "$ref": "#/components/responses/Conflito" },
-          "422": { "$ref": "#/components/responses/DadosInvalidos" }
+          "401": {
+            "$ref": "#/components/responses/NaoAutorizado"
+          },
+          "409": {
+            "$ref": "#/components/responses/Conflito"
+          },
+          "422": {
+            "$ref": "#/components/responses/DadosInvalidos"
+          }
         }
       }
     },
     "/api/notas": {
       "get": {
-        "tags": ["Notas"],
+        "tags": [
+          "Notas"
+        ],
         "summary": "Lista as notas do usuário",
         "parameters": [
-          { "name": "chave", "in": "query", "schema": { "type": "string" }, "description": "Trecho da chave de acesso." },
-          { "name": "dataInicio", "in": "query", "schema": { "type": "string", "format": "date" } },
-          { "name": "dataFim", "in": "query", "schema": { "type": "string", "format": "date" } },
-          { "name": "empresaId", "in": "query", "schema": { "type": "integer" } },
-          { "name": "busca", "in": "query", "schema": { "type": "string" }, "description": "Razão social, nome fantasia ou CNPJ." }
+          {
+            "name": "chave",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Trecho da chave de acesso."
+          },
+          {
+            "name": "dataInicio",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "dataFim",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          },
+          {
+            "name": "empresaId",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "name": "busca",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Razão social, nome fantasia ou CNPJ."
+          }
         ],
         "responses": {
           "200": {
-            "description": "Até 200 notas, da mais recente para a mais antiga",
+            "description": "Quantidade e totais de todas as notas filtradas, com a lista limitada às 200 mais recentes",
             "content": {
               "application/json": {
-                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/NotaResumo" } }
+                "schema": {
+                  "$ref": "#/components/schemas/ListagemNotas"
+                }
               }
             }
           },
-          "401": { "$ref": "#/components/responses/NaoAutorizado" }
+          "401": {
+            "$ref": "#/components/responses/NaoAutorizado"
+          }
         }
       }
     },
     "/api/notas/{id}": {
       "get": {
-        "tags": ["Notas"],
+        "tags": [
+          "Notas"
+        ],
         "summary": "Detalha uma nota com itens e comparação",
-        "parameters": [{ "$ref": "#/components/parameters/Id" }],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Nota encontrada",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/NotaDetalhe" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotaDetalhe"
+                }
+              }
+            }
           },
-          "401": { "$ref": "#/components/responses/NaoAutorizado" },
-          "404": { "$ref": "#/components/responses/NaoEncontrado" }
+          "401": {
+            "$ref": "#/components/responses/NaoAutorizado"
+          },
+          "404": {
+            "$ref": "#/components/responses/NaoEncontrado"
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Notas"
+        ],
+        "summary": "Exclui uma nota do usuário",
+        "description": "Apaga a nota e seus itens e recalcula o preço mais recente de cada produto no estabelecimento.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Nota excluída"
+          },
+          "401": {
+            "$ref": "#/components/responses/NaoAutorizado"
+          },
+          "404": {
+            "$ref": "#/components/responses/NaoEncontrado"
+          }
         }
       }
     },
     "/api/notas/{id}/comparacao": {
       "get": {
-        "tags": ["Notas"],
+        "tags": [
+          "Notas"
+        ],
         "summary": "Compara os itens da nota com o histórico",
-        "parameters": [{ "$ref": "#/components/parameters/Id" }],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Itens com situação, preço anterior, menor preço e economia possível",
             "content": {
               "application/json": {
-                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/ItemComparado" } }
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ItemComparado"
+                  }
+                }
               }
             }
           },
-          "401": { "$ref": "#/components/responses/NaoAutorizado" }
-        }
+          "401": {
+            "$ref": "#/components/responses/NaoAutorizado"
+          },
+          "404": {
+            "$ref": "#/components/responses/NaoEncontrado"
+          }
+        },
+        "description": "Cada item é comparado apenas com compras do mesmo produto feitas antes da nota, pela data e hora de emissão."
       }
     },
     "/api/produtos": {
       "get": {
-        "tags": ["Produtos"],
+        "tags": [
+          "Produtos"
+        ],
         "summary": "Busca produtos já comprados",
         "parameters": [
-          { "name": "termo", "in": "query", "schema": { "type": "string" }, "description": "Trecho da descrição." },
-          { "name": "ean", "in": "query", "schema": { "type": "string" }, "description": "Código de barras." },
-          { "name": "ncm", "in": "query", "schema": { "type": "string" }, "description": "Classificação fiscal." }
+          {
+            "name": "termo",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Trecho da descrição."
+          },
+          {
+            "name": "ean",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Código de barras."
+          },
+          {
+            "name": "ncm",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            },
+            "description": "Classificação fiscal."
+          }
         ],
         "responses": {
           "200": {
             "description": "Produtos com preço médio, menor e maior preço",
             "content": {
               "application/json": {
-                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Produto" } }
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Produto"
+                  }
+                }
               }
             }
           },
-          "401": { "$ref": "#/components/responses/NaoAutorizado" }
+          "401": {
+            "$ref": "#/components/responses/NaoAutorizado"
+          }
         }
       }
     },
     "/api/produtos/recorrentes": {
       "get": {
-        "tags": ["Produtos"],
+        "tags": [
+          "Produtos"
+        ],
         "summary": "Lista os produtos comprados mais de uma vez",
         "parameters": [
           {
             "name": "minimo",
             "in": "query",
-            "schema": { "type": "integer", "default": 2 },
+            "schema": {
+              "type": "integer",
+              "default": 2
+            },
             "description": "Número mínimo de notas em que o produto aparece."
           }
         ],
@@ -308,74 +596,130 @@
             "description": "Produtos recorrentes, com variação percentual entre o menor e o maior preço",
             "content": {
               "application/json": {
-                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/ProdutoRecorrente" } }
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProdutoRecorrente"
+                  }
+                }
               }
             }
           },
-          "401": { "$ref": "#/components/responses/NaoAutorizado" }
+          "401": {
+            "$ref": "#/components/responses/NaoAutorizado"
+          }
         }
       }
     },
     "/api/produtos/{id}/historico": {
       "get": {
-        "tags": ["Produtos"],
+        "tags": [
+          "Produtos"
+        ],
         "summary": "Série histórica de preço de um produto",
-        "parameters": [{ "$ref": "#/components/parameters/Id" }],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Histórico de compras, ofertas por estabelecimento e estatísticas",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/HistoricoProduto" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoricoProduto"
+                }
+              }
+            }
           },
-          "401": { "$ref": "#/components/responses/NaoAutorizado" },
-          "404": { "$ref": "#/components/responses/NaoEncontrado" }
-        }
+          "401": {
+            "$ref": "#/components/responses/NaoAutorizado"
+          },
+          "404": {
+            "$ref": "#/components/responses/NaoEncontrado"
+          }
+        },
+        "description": "Devolve 404 quando o usuário nunca comprou o produto, para não revelar itens comprados por outros usuários."
       }
     },
     "/api/empresas": {
       "get": {
-        "tags": ["Empresas"],
+        "tags": [
+          "Empresas"
+        ],
         "summary": "Lista os estabelecimentos onde o usuário comprou",
         "responses": {
           "200": {
             "description": "Estabelecimentos ordenados por total gasto",
             "content": {
               "application/json": {
-                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/Empresa" } }
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/Empresa"
+                  }
+                }
               }
             }
           },
-          "401": { "$ref": "#/components/responses/NaoAutorizado" }
+          "401": {
+            "$ref": "#/components/responses/NaoAutorizado"
+          }
         }
       }
     },
     "/api/empresas/{id}/produtos": {
       "get": {
-        "tags": ["Empresas"],
+        "tags": [
+          "Empresas"
+        ],
         "summary": "Produtos com preço registrado em um estabelecimento",
-        "parameters": [{ "$ref": "#/components/parameters/Id" }],
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
         "responses": {
           "200": {
             "description": "Produtos com o preço mais recente da loja",
             "content": {
               "application/json": {
-                "schema": { "type": "array", "items": { "$ref": "#/components/schemas/ProdutoDaEmpresa" } }
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ProdutoDaEmpresa"
+                  }
+                }
               }
             }
           },
-          "401": { "$ref": "#/components/responses/NaoAutorizado" }
+          "401": {
+            "$ref": "#/components/responses/NaoAutorizado"
+          }
         }
       }
     },
     "/api/relatorios/resumo": {
       "get": {
-        "tags": ["Relatórios"],
+        "tags": [
+          "Relatórios"
+        ],
         "summary": "Indicadores consolidados do usuário",
         "responses": {
           "200": {
             "description": "Totais, gasto por mês e produtos de maior variação",
-            "content": { "application/json": { "schema": { "$ref": "#/components/schemas/Resumo" } } }
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Resumo"
+                }
+              }
+            }
           },
-          "401": { "$ref": "#/components/responses/NaoAutorizado" }
+          "401": {
+            "$ref": "#/components/responses/NaoAutorizado"
+          }
         }
       }
     }
@@ -390,15 +734,26 @@
       }
     },
     "parameters": {
-      "Id": { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+      "Id": {
+        "name": "id",
+        "in": "path",
+        "required": true,
+        "schema": {
+          "type": "integer"
+        }
+      }
     },
     "responses": {
       "NaoAutorizado": {
         "description": "Token ausente, inválido ou expirado",
         "content": {
           "application/json": {
-            "schema": { "$ref": "#/components/schemas/Erro" },
-            "example": { "erro": "Autenticação obrigatória." }
+            "schema": {
+              "$ref": "#/components/schemas/Erro"
+            },
+            "example": {
+              "erro": "Autenticação obrigatória."
+            }
           }
         }
       },
@@ -406,8 +761,12 @@
         "description": "Registro não encontrado",
         "content": {
           "application/json": {
-            "schema": { "$ref": "#/components/schemas/Erro" },
-            "example": { "erro": "Nota não encontrada." }
+            "schema": {
+              "$ref": "#/components/schemas/Erro"
+            },
+            "example": {
+              "erro": "Nota não encontrada."
+            }
           }
         }
       },
@@ -415,8 +774,12 @@
         "description": "Registro já existente",
         "content": {
           "application/json": {
-            "schema": { "$ref": "#/components/schemas/Erro" },
-            "example": { "erro": "Esta nota fiscal já consta no seu histórico." }
+            "schema": {
+              "$ref": "#/components/schemas/Erro"
+            },
+            "example": {
+              "erro": "Esta nota fiscal já consta no seu histórico."
+            }
           }
         }
       },
@@ -424,8 +787,12 @@
         "description": "Dados de entrada inválidos",
         "content": {
           "application/json": {
-            "schema": { "$ref": "#/components/schemas/Erro" },
-            "example": { "erro": "A senha deve ter ao menos 6 caracteres." }
+            "schema": {
+              "$ref": "#/components/schemas/Erro"
+            },
+            "example": {
+              "erro": "A senha deve ter ao menos 6 caracteres."
+            }
           }
         }
       }
@@ -434,7 +801,9 @@
       "Erro": {
         "type": "object",
         "properties": {
-          "erro": { "type": "string" },
+          "erro": {
+            "type": "string"
+          },
           "codigo": {
             "type": "string",
             "description": "Presente em falhas previstas. `CONSULTA_ASSISTIDA` indica que o usuário deve consultar o portal oficial e importar o XML."
@@ -445,75 +814,180 @@
             "description": "Endereço da consulta oficial da SEFAZ, quando há um para a unidade federativa da nota."
           }
         },
-        "required": ["erro"]
+        "required": [
+          "erro"
+        ]
       },
       "Usuario": {
         "type": "object",
         "properties": {
-          "id": { "type": "integer" },
-          "nome": { "type": "string" },
-          "email": { "type": "string", "format": "email" }
+          "id": {
+            "type": "integer"
+          },
+          "nome": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string",
+            "format": "email"
+          }
         }
       },
       "Autenticacao": {
         "type": "object",
         "properties": {
-          "token": { "type": "string", "description": "JWT válido por sete dias." },
-          "usuario": { "$ref": "#/components/schemas/Usuario" }
+          "token": {
+            "type": "string",
+            "description": "JWT válido por sete dias."
+          },
+          "usuario": {
+            "$ref": "#/components/schemas/Usuario"
+          }
         }
       },
       "ChaveInterpretada": {
         "type": "object",
         "description": "Campos decompostos da chave de acesso, conforme o Manual de Orientação do Contribuinte.",
         "properties": {
-          "chave": { "type": "string" },
-          "cUF": { "type": "string" },
-          "uf": { "type": "string", "nullable": true },
-          "anoMesEmissao": { "type": "string", "example": "2026-03" },
-          "cnpjEmitente": { "type": "string" },
-          "modelo": { "type": "string", "example": "65" },
-          "descricaoModelo": { "type": "string", "example": "NFC-e" },
-          "serie": { "type": "string" },
-          "numero": { "type": "string" },
-          "tipoEmissao": { "type": "string" },
-          "codigoNumerico": { "type": "string" },
-          "digitoVerificador": { "type": "string" }
+          "chave": {
+            "type": "string"
+          },
+          "cUF": {
+            "type": "string"
+          },
+          "uf": {
+            "type": "string",
+            "nullable": true
+          },
+          "anoMesEmissao": {
+            "type": "string",
+            "example": "2026-03"
+          },
+          "cnpjEmitente": {
+            "type": "string"
+          },
+          "modelo": {
+            "type": "string",
+            "example": "65"
+          },
+          "descricaoModelo": {
+            "type": "string",
+            "example": "NFC-e"
+          },
+          "serie": {
+            "type": "string"
+          },
+          "numero": {
+            "type": "string"
+          },
+          "tipoEmissao": {
+            "type": "string"
+          },
+          "codigoNumerico": {
+            "type": "string"
+          },
+          "digitoVerificador": {
+            "type": "string"
+          }
         }
       },
       "NotaResumo": {
         "type": "object",
         "properties": {
-          "id": { "type": "integer" },
-          "chave": { "type": "string" },
-          "numero": { "type": "string" },
-          "serie": { "type": "string" },
-          "modelo": { "type": "string" },
-          "dataEmissao": { "type": "string", "format": "date" },
-          "valorTotal": { "type": "number" },
-          "valorTributos": { "type": "number" },
+          "id": {
+            "type": "integer"
+          },
+          "chave": {
+            "type": "string"
+          },
+          "numero": {
+            "type": "string"
+          },
+          "serie": {
+            "type": "string"
+          },
+          "modelo": {
+            "type": "string"
+          },
+          "dataEmissao": {
+            "type": "string",
+            "format": "date"
+          },
+          "valorTotal": {
+            "type": "number"
+          },
+          "valorTributos": {
+            "type": "number"
+          },
           "origem": {
             "type": "string",
-            "enum": ["qrcode", "infosimples", "xml", "demo", "manual"],
+            "enum": [
+              "qrcode",
+              "infosimples",
+              "xml",
+              "demo",
+              "manual"
+            ],
             "description": "Como a nota entrou no sistema."
           },
-          "empresaId": { "type": "integer" },
-          "razaoSocial": { "type": "string" },
-          "nomeFantasia": { "type": "string", "nullable": true },
-          "cnpj": { "type": "string" },
-          "municipio": { "type": "string", "nullable": true },
-          "uf": { "type": "string", "nullable": true },
-          "totalItens": { "type": "integer" }
+          "empresaId": {
+            "type": "integer"
+          },
+          "razaoSocial": {
+            "type": "string"
+          },
+          "nomeFantasia": {
+            "type": "string",
+            "nullable": true
+          },
+          "cnpj": {
+            "type": "string"
+          },
+          "municipio": {
+            "type": "string",
+            "nullable": true
+          },
+          "uf": {
+            "type": "string",
+            "nullable": true
+          },
+          "totalItens": {
+            "type": "integer"
+          },
+          "horaEmissao": {
+            "type": "string",
+            "nullable": true,
+            "example": "14:25:00"
+          }
         }
       },
       "NotaDetalhe": {
         "allOf": [
-          { "$ref": "#/components/schemas/NotaResumo" },
+          {
+            "$ref": "#/components/schemas/NotaResumo"
+          },
           {
             "type": "object",
             "properties": {
-              "logradouro": { "type": "string", "nullable": true },
-              "cnpjFormatado": { "type": "string", "example": "07.526.557/0001-00" },
-              "itens": { "type": "array", "items": { "$ref": "#/components/schemas/ItemComparado" } }
+              "logradouro": {
+                "type": "string",
+                "nullable": true
+              },
+              "cnpjFormatado": {
+                "type": "string",
+                "example": "07.526.557/0001-00"
+              },
+              "itens": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/components/schemas/ItemComparado"
+                }
+              },
+              "percentualTributos": {
+                "type": "number",
+                "nullable": true,
+                "description": "Tributos / valor total × 100."
+              }
             }
           }
         ]
@@ -521,53 +995,135 @@
       "ItemComparado": {
         "type": "object",
         "properties": {
-          "id": { "type": "integer" },
-          "produtoId": { "type": "integer" },
-          "descricao": { "type": "string" },
-          "ean": { "type": "string", "nullable": true },
-          "ncm": { "type": "string", "nullable": true },
-          "unidade": { "type": "string", "nullable": true },
-          "quantidade": { "type": "number" },
-          "valorUnitario": { "type": "number" },
-          "valorTotal": { "type": "number" },
+          "id": {
+            "type": "integer"
+          },
+          "produtoId": {
+            "type": "integer"
+          },
+          "descricao": {
+            "type": "string"
+          },
+          "ean": {
+            "type": "string",
+            "nullable": true
+          },
+          "ncm": {
+            "type": "string",
+            "nullable": true
+          },
+          "unidade": {
+            "type": "string",
+            "nullable": true
+          },
+          "quantidade": {
+            "type": "number"
+          },
+          "valorUnitario": {
+            "type": "number"
+          },
+          "valorTotal": {
+            "type": "number"
+          },
           "situacao": {
             "type": "string",
-            "enum": ["novo", "aumento", "reducao", "estavel"],
+            "enum": [
+              "novo",
+              "aumento",
+              "reducao",
+              "estavel"
+            ],
             "description": "Aumento acima de 1%, redução abaixo de -1%, estável entre esses limites."
           },
-          "comparacoes": { "type": "integer", "description": "Quantidade de compras anteriores do mesmo produto." },
-          "precoAnterior": { "type": "number", "description": "Ausente quando a situação é `novo`." },
-          "empresaAnterior": { "type": "string", "nullable": true },
-          "dataAnterior": { "type": "string", "format": "date" },
-          "menorPreco": { "type": "number" },
-          "precoMedio": { "type": "number" },
-          "variacaoPercentual": { "type": "number" },
-          "economiaPossivel": { "type": "number", "description": "Quanto a compra custaria a menos pelo menor preço já pago." }
-        }
+          "comparacoes": {
+            "type": "integer",
+            "description": "Quantidade de compras anteriores do mesmo produto."
+          },
+          "precoAnterior": {
+            "type": "number",
+            "description": "Ausente quando a situação é `novo`."
+          },
+          "empresaAnterior": {
+            "type": "string",
+            "nullable": true
+          },
+          "dataAnterior": {
+            "type": "string",
+            "format": "date"
+          },
+          "menorPreco": {
+            "type": "number",
+            "description": "Menor preço unitário entre as compras anteriores."
+          },
+          "precoMedio": {
+            "type": "number",
+            "description": "Σ valor total / Σ quantidade das compras anteriores."
+          },
+          "variacaoPercentual": {
+            "type": "number"
+          },
+          "economiaPossivel": {
+            "type": "number",
+            "description": "Quanto a compra custaria a menos pelo menor preço já pago."
+          }
+        },
+        "description": "Comparação com as compras do mesmo produto feitas antes desta nota."
       },
       "Produto": {
         "type": "object",
         "properties": {
-          "id": { "type": "integer" },
-          "descricao": { "type": "string" },
-          "ean": { "type": "string", "nullable": true },
-          "ncm": { "type": "string", "nullable": true },
-          "unidade": { "type": "string", "nullable": true },
-          "ocorrencias": { "type": "integer" },
-          "precoMedio": { "type": "number" },
-          "menorPreco": { "type": "number" },
-          "maiorPreco": { "type": "number" },
-          "ultimaCompra": { "type": "string", "format": "date" }
+          "id": {
+            "type": "integer"
+          },
+          "descricao": {
+            "type": "string"
+          },
+          "ean": {
+            "type": "string",
+            "nullable": true
+          },
+          "ncm": {
+            "type": "string",
+            "nullable": true
+          },
+          "unidade": {
+            "type": "string",
+            "nullable": true
+          },
+          "ocorrencias": {
+            "type": "integer"
+          },
+          "precoMedio": {
+            "type": "number",
+            "description": "Σ valor total / Σ quantidade (média ponderada)."
+          },
+          "menorPreco": {
+            "type": "number"
+          },
+          "maiorPreco": {
+            "type": "number"
+          },
+          "ultimaCompra": {
+            "type": "string",
+            "format": "date"
+          },
+          "totalGasto": {
+            "type": "number"
+          }
         }
       },
       "ProdutoRecorrente": {
         "allOf": [
-          { "$ref": "#/components/schemas/Produto" },
+          {
+            "$ref": "#/components/schemas/Produto"
+          },
           {
             "type": "object",
             "properties": {
-              "totalGasto": { "type": "number" },
-              "variacaoPercentual": { "type": "number" }
+              "amplitudePercentual": {
+                "type": "number",
+                "description": "(maior − menor) / menor × 100."
+              }
             }
           }
         ]
@@ -575,13 +1131,31 @@
       "ProdutoDaEmpresa": {
         "type": "object",
         "properties": {
-          "id": { "type": "integer" },
-          "descricao": { "type": "string" },
-          "ean": { "type": "string", "nullable": true },
-          "ncm": { "type": "string", "nullable": true },
-          "unidade": { "type": "string", "nullable": true },
-          "valorUnitario": { "type": "number" },
-          "dataReferencia": { "type": "string", "format": "date" }
+          "id": {
+            "type": "integer"
+          },
+          "descricao": {
+            "type": "string"
+          },
+          "ean": {
+            "type": "string",
+            "nullable": true
+          },
+          "ncm": {
+            "type": "string",
+            "nullable": true
+          },
+          "unidade": {
+            "type": "string",
+            "nullable": true
+          },
+          "valorUnitario": {
+            "type": "number"
+          },
+          "dataReferencia": {
+            "type": "string",
+            "format": "date"
+          }
         }
       },
       "HistoricoProduto": {
@@ -590,11 +1164,24 @@
           "produto": {
             "type": "object",
             "properties": {
-              "id": { "type": "integer" },
-              "descricao": { "type": "string" },
-              "ean": { "type": "string", "nullable": true },
-              "ncm": { "type": "string", "nullable": true },
-              "unidade": { "type": "string", "nullable": true }
+              "id": {
+                "type": "integer"
+              },
+              "descricao": {
+                "type": "string"
+              },
+              "ean": {
+                "type": "string",
+                "nullable": true
+              },
+              "ncm": {
+                "type": "string",
+                "nullable": true
+              },
+              "unidade": {
+                "type": "string",
+                "nullable": true
+              }
             }
           },
           "historico": {
@@ -602,40 +1189,102 @@
             "items": {
               "type": "object",
               "properties": {
-                "dataEmissao": { "type": "string", "format": "date" },
-                "chave": { "type": "string" },
-                "empresa": { "type": "string", "nullable": true },
-                "cnpj": { "type": "string" },
-                "valorUnitario": { "type": "number" },
-                "quantidade": { "type": "number" }
+                "dataEmissao": {
+                  "type": "string",
+                  "format": "date"
+                },
+                "chave": {
+                  "type": "string"
+                },
+                "empresa": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "cnpj": {
+                  "type": "string"
+                },
+                "valorUnitario": {
+                  "type": "number"
+                },
+                "quantidade": {
+                  "type": "number"
+                },
+                "notaId": {
+                  "type": "integer"
+                },
+                "horaEmissao": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "empresaId": {
+                  "type": "integer"
+                },
+                "valorTotal": {
+                  "type": "number"
+                }
               }
             }
           },
           "ofertas": {
             "type": "array",
-            "description": "Preço mais recente do produto em cada estabelecimento, do menor para o maior.",
+            "description": "Preço da compra mais recente do usuário em cada estabelecimento, do menor para o maior.",
             "items": {
               "type": "object",
               "properties": {
-                "id": { "type": "integer" },
-                "empresa": { "type": "string", "nullable": true },
-                "razaoSocial": { "type": "string" },
-                "municipio": { "type": "string", "nullable": true },
-                "uf": { "type": "string", "nullable": true },
-                "valorUnitario": { "type": "number" },
-                "dataReferencia": { "type": "string", "format": "date" }
+                "id": {
+                  "type": "integer"
+                },
+                "empresa": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "razaoSocial": {
+                  "type": "string"
+                },
+                "municipio": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "uf": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "valorUnitario": {
+                  "type": "number"
+                },
+                "dataReferencia": {
+                  "type": "string",
+                  "format": "date"
+                }
               }
             }
           },
           "estatisticas": {
             "type": "object",
-            "nullable": true,
+            "nullable": false,
             "properties": {
-              "compras": { "type": "integer" },
-              "menorPreco": { "type": "number" },
-              "maiorPreco": { "type": "number" },
-              "precoMedio": { "type": "number" },
-              "variacaoPercentual": { "type": "number" }
+              "compras": {
+                "type": "integer",
+                "description": "Número de notas com o produto."
+              },
+              "menorPreco": {
+                "type": "number"
+              },
+              "maiorPreco": {
+                "type": "number"
+              },
+              "precoMedio": {
+                "type": "number",
+                "description": "Σ valor total / Σ quantidade."
+              },
+              "variacaoPercentual": {
+                "type": "number",
+                "description": "(última compra − primeira) / primeira × 100."
+              },
+              "amplitudePercentual": {
+                "type": "number",
+                "description": "(maior − menor) / menor × 100."
+              }
             }
           }
         }
@@ -643,55 +1292,155 @@
       "Empresa": {
         "type": "object",
         "properties": {
-          "id": { "type": "integer" },
-          "cnpj": { "type": "string" },
-          "razaoSocial": { "type": "string" },
-          "nomeFantasia": { "type": "string", "nullable": true },
-          "municipio": { "type": "string", "nullable": true },
-          "uf": { "type": "string", "nullable": true },
-          "totalNotas": { "type": "integer" },
-          "totalGasto": { "type": "number" },
-          "ultimaCompra": { "type": "string", "format": "date" }
+          "id": {
+            "type": "integer"
+          },
+          "cnpj": {
+            "type": "string"
+          },
+          "razaoSocial": {
+            "type": "string"
+          },
+          "nomeFantasia": {
+            "type": "string",
+            "nullable": true
+          },
+          "municipio": {
+            "type": "string",
+            "nullable": true
+          },
+          "uf": {
+            "type": "string",
+            "nullable": true
+          },
+          "totalNotas": {
+            "type": "integer"
+          },
+          "totalGasto": {
+            "type": "number"
+          },
+          "ultimaCompra": {
+            "type": "string",
+            "format": "date"
+          }
         }
       },
       "Resumo": {
         "type": "object",
         "properties": {
-          "totalNotas": { "type": "integer" },
-          "totalGasto": { "type": "number" },
-          "totalTributos": { "type": "number" },
-          "primeiraCompra": { "type": "string", "format": "date", "nullable": true },
-          "ultimaCompra": { "type": "string", "format": "date", "nullable": true },
-          "totalEstabelecimentos": { "type": "integer" },
-          "totalProdutos": { "type": "integer" },
+          "totalNotas": {
+            "type": "integer"
+          },
+          "totalGasto": {
+            "type": "number"
+          },
+          "totalTributos": {
+            "type": "number"
+          },
+          "primeiraCompra": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "ultimaCompra": {
+            "type": "string",
+            "format": "date",
+            "nullable": true
+          },
+          "totalEstabelecimentos": {
+            "type": "integer"
+          },
+          "totalProdutos": {
+            "type": "integer"
+          },
           "gastoPorMes": {
             "type": "array",
             "items": {
               "type": "object",
               "properties": {
-                "mes": { "type": "string", "example": "2026-03" },
-                "total": { "type": "number" }
+                "mes": {
+                  "type": "string",
+                  "example": "2026-03"
+                },
+                "total": {
+                  "type": "number"
+                }
               }
-            }
+            },
+            "description": "Todos os meses entre a primeira e a última compra, com zero nos meses sem compra."
           },
           "maioresVariacoes": {
             "type": "array",
             "items": {
               "type": "object",
               "properties": {
-                "id": { "type": "integer" },
-                "descricao": { "type": "string" },
-                "unidade": { "type": "string", "nullable": true },
-                "menorPreco": { "type": "number" },
-                "maiorPreco": { "type": "number" },
-                "ocorrencias": { "type": "integer" },
-                "variacaoPercentual": { "type": "number" }
+                "id": {
+                  "type": "integer"
+                },
+                "descricao": {
+                  "type": "string"
+                },
+                "unidade": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "menorPreco": {
+                  "type": "number"
+                },
+                "maiorPreco": {
+                  "type": "number"
+                },
+                "ocorrencias": {
+                  "type": "integer"
+                },
+                "amplitudePercentual": {
+                  "type": "number",
+                  "description": "(maior − menor) / menor × 100."
+                }
               }
+            }
+          },
+          "percentualTributos": {
+            "type": "number",
+            "nullable": true,
+            "description": "Σ tributos / Σ valor total × 100."
+          },
+          "ticketMedio": {
+            "type": "number",
+            "description": "Total gasto / número de notas."
+          }
+        }
+      },
+      "ListagemNotas": {
+        "type": "object",
+        "properties": {
+          "quantidade": {
+            "type": "integer",
+            "description": "Total de notas que atendem aos filtros."
+          },
+          "valorTotal": {
+            "type": "number"
+          },
+          "valorTributos": {
+            "type": "number"
+          },
+          "limite": {
+            "type": "integer",
+            "example": 200
+          },
+          "notas": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NotaResumo"
             }
           }
         }
       }
     }
   },
-  "security": [{ "bearerAuth": [] }]
+  "security": [
+    {
+      "bearerAuth": []
+    }
+  ]
 }

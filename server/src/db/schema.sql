@@ -40,9 +40,10 @@ CREATE TABLE IF NOT EXISTS nota_fiscal (
   serie          TEXT,
   modelo         TEXT,
   data_emissao   TEXT    NOT NULL,
+  hora_emissao   TEXT,             -- HH:MM:SS, quando a fonte informa
   valor_total    REAL    NOT NULL DEFAULT 0,
   valor_tributos REAL    NOT NULL DEFAULT 0,
-  origem         TEXT    NOT NULL DEFAULT 'qrcode', -- qrcode | xml | manual
+  origem         TEXT    NOT NULL DEFAULT 'qrcode', -- qrcode | xml | infosimples | demo
   criado_em      TEXT    NOT NULL DEFAULT (datetime('now')),
   UNIQUE (usuario_id, chave_acesso)
 );
@@ -62,11 +63,14 @@ CREATE TABLE IF NOT EXISTS item_nota (
 CREATE INDEX IF NOT EXISTS idx_item_produto ON item_nota(produto_id);
 CREATE INDEX IF NOT EXISTS idx_item_nota ON item_nota(nota_id);
 
--- Preço mais recente praticado por empresa/produto, atualizado a cada nota importada
+-- Preço mais recente pago por cada usuário em cada estabelecimento, por produto.
+-- É por usuário: um usuário nunca vê os preços, lojas ou datas das compras de outro.
+-- data_referencia guarda a data e, quando conhecida, a hora (AAAA-MM-DDTHH:MM:SS).
 CREATE TABLE IF NOT EXISTS preco_empresa_produto (
+  usuario_id      INTEGER NOT NULL REFERENCES usuario(id) ON DELETE CASCADE,
   empresa_id      INTEGER NOT NULL REFERENCES empresa(id),
   produto_id      INTEGER NOT NULL REFERENCES produto(id),
   valor_unitario  REAL    NOT NULL,
   data_referencia TEXT    NOT NULL,
-  PRIMARY KEY (empresa_id, produto_id)
+  PRIMARY KEY (usuario_id, empresa_id, produto_id)
 );

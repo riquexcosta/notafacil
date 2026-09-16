@@ -10,7 +10,7 @@ import {
   XAxis,
   YAxis
 } from 'recharts';
-import { api, dataBr, mesBr, moeda } from '../servicos/api.js';
+import { api, dataBr, mesBr, moeda, percentual } from '../servicos/api.js';
 import { Cabecalho, Indicador, Vazio } from '../componentes/comuns.jsx';
 
 export default function Painel() {
@@ -63,22 +63,18 @@ export default function Painel() {
           rotulo="Tributos embutidos"
           valor={moeda(resumo.totalTributos)}
           apoio={
-            resumo.totalGasto > 0
-              ? `${((resumo.totalTributos / resumo.totalGasto) * 100).toFixed(1)}% do total pago`
-              : '—'
+            resumo.percentualTributos === null ? '—' : `${percentual(resumo.percentualTributos)} do total pago`
           }
         />
-        <Indicador
-          rotulo="Ticket médio"
-          valor={moeda(resumo.totalNotas ? resumo.totalGasto / resumo.totalNotas : 0)}
-          apoio="por nota fiscal"
-        />
+        <Indicador rotulo="Ticket médio" valor={moeda(resumo.ticketMedio)} apoio="total gasto ÷ notas" />
       </div>
 
       <div className="grade grade-2-1" style={{ marginTop: 16 }}>
         <div className="cartao">
           <h2>Gasto por mês</h2>
-          <p className="legenda">Soma do valor total das notas importadas em cada mês.</p>
+          <p className="legenda">
+            Soma do valor total das notas de cada mês, com zero nos meses sem compra.
+          </p>
           <ResponsiveContainer width="100%" height={228}>
             <BarChart data={serie} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#eef2f7" vertical={false} />
@@ -102,7 +98,7 @@ export default function Painel() {
 
         <div className="cartao">
           <h2>Maiores variações</h2>
-          <p className="legenda">Diferença entre o menor e o maior preço já pago.</p>
+          <p className="legenda">Amplitude entre o menor e o maior preço já pago: (maior − menor) ÷ menor.</p>
           {resumo.maioresVariacoes.length === 0 ? (
             <Vazio>Importe mais notas para comparar preços.</Vazio>
           ) : (
@@ -119,7 +115,7 @@ export default function Painel() {
                       </div>
                     </td>
                     <td className="num">
-                      <span className="etiqueta aumento">+{p.variacaoPercentual}%</span>
+                      <span className="etiqueta estavel">{percentual(p.amplitudePercentual)}</span>
                     </td>
                   </tr>
                 ))}
@@ -132,7 +128,8 @@ export default function Painel() {
       <div className="cartao">
         <h2>Produtos que você compra com frequência</h2>
         <p className="legenda">
-          Itens presentes em duas ou mais notas, identificados pelo código de barras (EAN).
+          Itens presentes em duas ou mais notas, identificados pelo código de barras ou, sem ele, pela descrição.
+          Médio = total gasto ÷ quantidade comprada. Amplitude = (maior − menor) ÷ menor.
         </p>
         {recorrentes.length === 0 ? (
           <Vazio>Nenhum produto recorrente identificado até o momento.</Vazio>
@@ -146,7 +143,7 @@ export default function Painel() {
                 <th className="num">Menor</th>
                 <th className="num">Médio</th>
                 <th className="num">Maior</th>
-                <th className="num">Variação</th>
+                <th className="num">Amplitude</th>
                 <th className="num">Total gasto</th>
               </tr>
             </thead>
@@ -164,9 +161,7 @@ export default function Painel() {
                   <td className="num">{moeda(p.precoMedio)}</td>
                   <td className="num">{moeda(p.maiorPreco)}</td>
                   <td className="num">
-                    <span className={`etiqueta ${p.variacaoPercentual > 10 ? 'aumento' : 'estavel'}`}>
-                      {p.variacaoPercentual}%
-                    </span>
+                    <span className="etiqueta estavel">{percentual(p.amplitudePercentual)}</span>
                   </td>
                   <td className="num">{moeda(p.totalGasto)}</td>
                 </tr>
