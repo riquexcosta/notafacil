@@ -75,6 +75,7 @@ export class ProvedorXmlAutorizado {
       };
     });
 
+    recusarEmitentePessoaFisica(emit.CNPJ, emit.CPF);
     return {
       chave,
       numero: String(ide.nNF ?? ''),
@@ -200,8 +201,27 @@ function numeroBr(valor) {
 const primeiro = (v) => (Array.isArray(v) ? (v[0] ?? {}) : (v ?? {}));
 const texto = (v) => (v === undefined || v === null || String(v).trim() === '' ? null : String(v).trim());
 const ncmValido = (v) => (/^\d{8}$/.test(somenteDigitos(v)) ? somenteDigitos(v) : null);
-/** "3550308 - SAO PAULO" ou "SAO PAULO" → "SAO PAULO". */
-const nomeMunicipio = (v) => texto(String(v ?? '').replace(/^\d+\s*-\s*/, ''));
+/** "3550308 - SAO PAULO" ou "SAO PAULO" → "SAO PAULO"; só o código IBGE não serve como nome. */
+const nomeMunicipio = (...valores) =>
+  valores.map((v) => texto(String(v ?? '').replace(/^\d+\s*-\s*/, ''))).find((v) => v && !/^\d+$/.test(v)) ?? null;
+
+/**
+ * O NotaFácil registra estabelecimentos, identificados pelo CNPJ. Nota emitida por
+ * pessoa física (produtor rural, NF-e avulsa com CPF) é recusada para não gravar
+ * nome, endereço e CPF de terceiros.
+ */
+export function recusarEmitentePessoaFisica(cnpj, cpf) {
+  if (somenteDigitos(cnpj) || !somenteDigitos(cpf)) return;
+  const erro = new Error(
+    'Esta nota foi emitida por pessoa física (CPF). O NotaFácil registra apenas compras em estabelecimentos com CNPJ.'
+  );
+  erro.status = 422;
+  erro.codigo = 'EMITENTE_PESSOA_FISICA';
+  throw erro;
+}
+
+/** Séries 890 a 899: NF-e avulsa, cuja chave traz o CNPJ do fisco, e não o do emitente. */
+export const serieAvulsa = (serie) => Number(serie) >= 890 && Number(serie) <= 899;
 
 function recusarCancelada(cancelada) {
   if (!cancelada) return;
@@ -266,6 +286,7 @@ function converterCompleta(dados, meta) {
   const emitente = primeiro(dados.emitente);
   const totais = primeiro(dados.totais);
   recusarCancelada(/cancel/i.test(String(nfe.situacao ?? '')));
+  recusarEmitentePessoaFisica(emitente.normalizado_cnpj || emitente.cnpj, emitente.normalizado_cpf || emitente.cpf);
   const itens = lista(dados.produtos).map((p) =>
     item({
       ean: gtinValido(p.ean_comercial) ?? gtinValido(p.ean_tributavel) ?? gtinValido(p.codigo),
@@ -288,11 +309,11 @@ function converterCompleta(dados, meta) {
       Number(itens.reduce((s, i) => s + i.valorTotal, 0).toFixed(2)),
     valorTributos: numeroBr(totais.normalizado_valor_tributos ?? totais.valor_tributos),
     emitente: {
-      cnpj: somenteDigitos(emitente.normalizado_cnpj ?? emitente.cnpj),
+      cnpj: somenteDigitos(emitente.normalizado_cnpj || emitente.cnpj),
       razaoSocial: texto(emitente.nome),
       nomeFantasia: texto(emitente.nome_fantasia),
       logradouro: texto(emitente.endereco),
-      municipio: nomeMunicipio(emitente.normalizado_municipio ?? emitente.municipio),
+      municipio: nomeMunicipio(emitente.municipio, emitente.normalizado_municipio),
       uf: texto(emitente.uf) ?? meta.uf
     },
     itens
@@ -326,7 +347,7 @@ function converterMg(dados, meta) {
       Number(itens.reduce((s, i) => s + i.valorTotal, 0).toFixed(2)),
     valorTributos: 0,
     emitente: {
-      cnpj: somenteDigitos(emitente.normalizado_cnpj ?? emitente.cnpj),
+      cnpj: somenteDigitos(emitente.normalizado_cnpj || emitente.cnpj),
       razaoSocial: texto(emitente.razao_social),
       nomeFantasia: null,
       logradouro: null,
@@ -353,6 +374,9 @@ export function converterRespostaInfosimples(dados, chave, meta = interpretarCha
   const nota = conversor(dados, meta);
   if (!nota.dataEmissao) throw indisponivel('Infosimples: resposta sem data de emissão.');
   if (!nota.itens.length) throw indisponivel('Infosimples: resposta sem produtos.');
+  // Na NF-e avulsa, o CNPJ da chave é o do fisco: sem CNPJ na resposta, não há estabelecimento a registrar.
+  const cnpj = nota.emitente.cnpj || (serieAvulsa(meta.serie) ? '' : meta.cnpjEmitente);
+  if (!cnpj) throw indisponivel('Infosimples: resposta sem o CNPJ do emitente.');
   return {
     chave,
     numero: String(nota.numero ?? meta.numero),
@@ -364,7 +388,7 @@ export function converterRespostaInfosimples(dados, chave, meta = interpretarCha
     valorTributos: nota.valorTributos,
     emitente: {
       ...nota.emitente,
-      cnpj: nota.emitente.cnpj || meta.cnpjEmitente,
+      cnpj,
       razaoSocial: nota.emitente.razaoSocial ?? 'Emitente não identificado'
     },
     origem: 'infosimples',

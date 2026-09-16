@@ -8,6 +8,7 @@ import {
   converterRespostaInfosimples,
   ProvedorConsultaAssistida,
   ProvedorInfosimples,
+  ProvedorXmlAutorizado,
   SERVICOS_INFOSIMPLES
 } from '../src/domain/nfe/provedores.js';
 import { anonimizarResposta } from '../src/domain/nfe/amostrasInfosimples.js';
@@ -331,4 +332,84 @@ test('NF-e de modelo 55 usa o serviço unificado sefaz/nfe com o parâmetro nfe'
   assert.equal(nota.modelo, '55');
   assert.equal(nota.valorTotal, 199.9);
   assert.deepEqual([nota.itens[0].ean, nota.itens[0].ncm, nota.itens[0].valorTotal], [null, '85183000', 199.9]);
+});
+
+/* ------------------------------------------- NF-e real e emitente pessoa física */
+
+// Resposta real do serviço sefaz/nfe (NF-e de modelo 55 da PB, emitente com CNPJ),
+// anonimizada: sem destinatário, cobrança, informações adicionais e links.
+const AMOSTRA_NFE = JSON.parse(
+  fs.readFileSync(new URL('./fixtures/infosimples-pb-nfe.json', import.meta.url), 'utf8')
+);
+const CHAVE_NFE = '25260805457026000187550010007953961209041873';
+
+test('converte a resposta real de NF-e (sefaz/nfe) com totais, município, GTIN e NCM', () => {
+  const nota = converterRespostaInfosimples(AMOSTRA_NFE.data[0], CHAVE_NFE);
+  assert.equal(nota.modelo, '55');
+  assert.equal(nota.numero, '795396');
+  assert.equal(nota.dataEmissao, '2026-08-17');
+  assert.equal(nota.horaEmissao, '09:40:00');
+  assert.equal(nota.valorTotal, 1357.45); // confere com o valor publicado no Portal da Transparência
+  assert.equal(nota.valorTributos, 188.42);
+  assert.deepEqual(
+    [nota.emitente.cnpj, nota.emitente.razaoSocial, nota.emitente.municipio, nota.emitente.nomeFantasia],
+    ['05457026000187', '3LC LTDA', 'ALAGOA GRANDE', null]
+  );
+  assert.equal(nota.itens.length, 5);
+  assert.equal(Number(nota.itens.reduce((s, i) => s + i.valorTotal, 0).toFixed(2)), 1357.45);
+  assert.deepEqual(
+    [nota.itens[0].descricao, nota.itens[0].ncm, nota.itens[0].ean, nota.itens[0].quantidade, nota.itens[0].valorUnitario],
+    ['CANETA MARCA TEXTO AMARELA', '96082000', null, 50, 0.86]
+  );
+  assert.ok(nota.itens.some((i) => i.ean === '7898613219130'));
+});
+
+test('NF-e emitida por pessoa física é recusada, sem gravar nome, endereço ou CPF', () => {
+  const dados = structuredClone(AMOSTRA_NFE.data[0]);
+  dados.emitente = { nome: 'PRODUTOR RURAL', cnpj: '', cpf: '055.271.084-93', endereco: 'SITIO X', municipio: '2501203 - AREIAL', uf: 'PB' };
+  assert.throws(() => converterRespostaInfosimples(dados, CHAVE_NFE), (erro) => {
+    assert.equal(erro.status, 422);
+    assert.equal(erro.codigo, 'EMITENTE_PESSOA_FISICA');
+    return true;
+  });
+});
+
+test('na NF-e avulsa (série 890 a 899) o CNPJ do fisco na chave não vira emitente', () => {
+  const base = '25' + '2608' + '08761132000148' + '55' + '892' + '900609771' + '1' + '80438842';
+  const chaveAvulsa = base + calcularDigitoVerificador(base);
+  const semCnpj = structuredClone(AMOSTRA_NFE.data[0]);
+  semCnpj.emitente = { nome: 'EMITENTE SEM DOCUMENTO', cnpj: '', cpf: '' };
+  assert.throws(() => converterRespostaInfosimples(semCnpj, chaveAvulsa), { codigo: 'PROVEDOR_INDISPONIVEL' });
+
+  const comCnpj = structuredClone(AMOSTRA_NFE.data[0]);
+  assert.equal(converterRespostaInfosimples(comCnpj, chaveAvulsa).emitente.cnpj, '05457026000187');
+});
+
+test('o XML autorizado de emitente pessoa física também é recusado', async () => {
+  const base = '25' + '2608' + '08761132000148' + '55' + '892' + '900609771' + '1' + '80438842';
+  const chaveAvulsa = base + calcularDigitoVerificador(base);
+  const xml = `<?xml version="1.0" encoding="UTF-8"?>
+<nfeProc><NFe><infNFe Id="NFe${chaveAvulsa}" versao="4.00">
+  <ide><nNF>900609771</nNF><serie>892</serie><mod>55</mod><dhEmi>2026-08-10T10:29:35-03:00</dhEmi></ide>
+  <emit><CPF>05527108493</CPF><xNome>PRODUTOR RURAL</xNome><enderEmit><xMun>AREIAL</xMun><UF>PB</UF></enderEmit></emit>
+  <det nItem="1"><prod><cEAN>SEM GTIN</cEAN><xProd>BATATA DOCE</xProd><NCM>07142000</NCM><uCom>KG</uCom><qCom>66</qCom><vUnCom>5</vUnCom><vProd>330</vProd></prod></det>
+  <total><ICMSTot><vNF>330.00</vNF></ICMSTot></total>
+</infNFe></NFe></nfeProc>`;
+  await assert.rejects(new ProvedorXmlAutorizado().consultarPorXml(xml), { codigo: 'EMITENTE_PESSOA_FISICA' });
+});
+
+test('a amostra gravada substitui o emitente pessoa física e retira cobrança e links', () => {
+  const anonima = anonimizarResposta({
+    data: [
+      {
+        emitente: { nome: 'PRODUTOR RURAL', cpf: '055.271.084-93', cnpj: '', endereco: 'SITIO X' },
+        cobranca: { fatura: 'AGENCIA 1234' },
+        info_adicionais: { informacoes_complementares: 'DADOS BANCARIOS' },
+        url_xml: 'https://exemplo/assinado',
+        produtos: [{ descricao: 'BATATA DOCE' }]
+      }
+    ],
+    site_receipts: ['https://exemplo/recibo']
+  });
+  assert.deepEqual(anonima, { data: [{ emitente: { pessoa_fisica: true }, produtos: [{ descricao: 'BATATA DOCE' }] }] });
 });

@@ -232,7 +232,7 @@ O `.env` não vai para o Git.
 | `npm run dev` | Mesmo que o anterior, com recarga automática. |
 | `npm run start:demo` | Sobe a API no modo demonstração. |
 | `npm run seed` | Restaura a conta de demonstração, sem tocar nas outras contas. |
-| `npm test` | Roda os 88 testes automatizados. |
+| `npm test` | Roda os 93 testes automatizados. |
 | `npm run sonda:infosimples -- <chave>` | Faz **uma** consulta real à Infosimples e grava a resposta em `server/data/infosimples-amostra.json`. Consome uma requisição da conta. |
 
 **`web/`**
@@ -395,14 +395,14 @@ Para publicar o sistema: sirva a API e o cliente por HTTPS, defina `JWT_SECRET` 
 npm --prefix server test
 ```
 
-São 88 casos, executados sobre uma base isolada em diretório temporário:
+São 93 casos, executados sobre uma base isolada em diretório temporário:
 
 | Arquivo | Casos | Cobre |
 | --- | --- | --- |
 | `chaveAcesso.test.js` | 10 | Validação e decomposição da chave, extração a partir do QR Code e formatação do CNPJ. |
 | `comparacao.test.js` | 11 | Classificação da variação de preço, economia possível, recusa de duplicidade, indicadores e identidade do produto. |
 | `provedores.test.js` | 6 | Consulta assistida, links de portais oficiais e cadeia de provedores. |
-| `infosimples.test.js` | 19 | Serviços das 27 UFs, NF-e de modelo 55 pelo serviço unificado, conversão dos formatos resumido, completo (SP) e de MG, troca de caminho sem custo (602) e parada em erro cobrado, GTIN, datas, notas canceladas, anonimização das amostras e desvio em caso de falha. |
+| `infosimples.test.js` | 24 | Serviços das 27 UFs, NF-e de modelo 55 pelo serviço unificado (com resposta real anonimizada), recusa de emitente pessoa física e da NF-e avulsa sem CNPJ, conversão dos formatos resumido, completo (SP) e de MG, troca de caminho sem custo (602) e parada em erro cobrado, GTIN, datas, notas canceladas, anonimização das amostras e desvio em caso de falha. |
 | `metricas.test.js` | 17 | Fórmulas do painel, dos produtos, da nota e do comparativo; ordem cronológica da comparação; isolamento entre usuários; exclusão de nota. |
 | `lgpd.test.js` | 13 | Aceite e consentimento no cadastro, política pendente, exportação, correção, exclusão de nota e de conta, descarte do CPF, isolamento pelas rotas, limite de login, CORS e segredo obrigatório em produção. |
 | `implantacao.test.js` | 7 | Cadastro fechado por configuração, limite de cadastros por IP, restauração da conta demo sem afetar outras contas, confiança no proxy, cliente web servido pela API e 404 em JSON para rota inexistente. |
