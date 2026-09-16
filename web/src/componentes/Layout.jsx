@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 import { encerrarSessao, lerSessao } from '../servicos/api.js';
 
@@ -14,6 +15,9 @@ const ITENS = [
 export default function Layout() {
   const navegar = useNavigate();
   const sessao = lerSessao();
+  // No celular, o menu fica recolhido atrás do botão da barra superior.
+  const [menuAberto, setMenuAberto] = useState(false);
+  const fecharMenu = () => setMenuAberto(false);
 
   function sair() {
     encerrarSessao();
@@ -22,34 +26,48 @@ export default function Layout() {
 
   return (
     <div className="app">
-      <aside className="barra-lateral">
-        <div className="marca">
-          <span className="marca-icone">▤</span>
-          NotaFácil
+      <aside className={`barra-lateral ${menuAberto ? 'menu-aberto' : ''}`}>
+        <div className="topo-lateral">
+          <div className="marca">
+            <span className="marca-icone">▤</span>
+            NotaFácil
+          </div>
+          <button
+            type="button"
+            className="botao-menu"
+            aria-expanded={menuAberto}
+            aria-controls="navegacao-principal"
+            onClick={() => setMenuAberto(!menuAberto)}
+          >
+            {menuAberto ? '✕ Fechar' : '☰ Menu'}
+          </button>
         </div>
 
-        <nav className="menu">
-          {ITENS.map((item) => (
-            <NavLink
-              key={item.rota}
-              to={item.rota}
-              className={({ isActive }) => (isActive ? 'ativo' : undefined)}
-            >
-              <span aria-hidden="true">{item.icone}</span>
-              {item.rotulo}
-            </NavLink>
-          ))}
-        </nav>
+        <div id="navegacao-principal" className="navegacao">
+          <nav className="menu">
+            {ITENS.map((item) => (
+              <NavLink
+                key={item.rota}
+                to={item.rota}
+                onClick={fecharMenu}
+                className={({ isActive }) => (isActive ? 'ativo' : undefined)}
+              >
+                <span aria-hidden="true">{item.icone}</span>
+                {item.rotulo}
+              </NavLink>
+            ))}
+          </nav>
 
-        <div className="rodape-lateral">
-          <strong>{sessao?.usuario?.nome ?? 'Visitante'}</strong>
-          <span>{sessao?.usuario?.email}</span>
-          <button type="button" className="botao-sair" onClick={sair}>
-            Sair da conta
-          </button>
-          <NavLink to="/privacidade" className="link-privacidade">
-            Política de privacidade
-          </NavLink>
+          <div className="rodape-lateral">
+            <strong>{sessao?.usuario?.nome ?? 'Visitante'}</strong>
+            <span>{sessao?.usuario?.email}</span>
+            <button type="button" className="botao-sair" onClick={sair}>
+              Sair da conta
+            </button>
+            <NavLink to="/privacidade" className="link-privacidade" onClick={fecharMenu}>
+              Política de privacidade
+            </NavLink>
+          </div>
         </div>
       </aside>
 

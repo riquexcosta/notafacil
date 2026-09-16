@@ -214,23 +214,25 @@ export default function Comparativo() {
           <div className="cartao">
             <h2>Menor preço por estabelecimento</h2>
             <p className="legenda">Em quantos dos produtos comparados cada loja teve o menor preço.</p>
-            <table>
-              <tbody>
-                {[...lojas]
-                  .sort((a, b) => b.produtosComMenorPreco - a.produtosComMenorPreco)
-                  .map((l) => (
-                    <tr key={l.id}>
-                      <td className="descricao-produto">{l.nome}</td>
-                      <td className="fraco">
-                        {l.municipio}/{l.uf}
-                      </td>
-                      <td className="num">
-                        {l.produtosComMenorPreco} de {resultado.produtos.length}
-                      </td>
-                    </tr>
-                  ))}
-              </tbody>
-            </table>
+            <div className="rolagem-horizontal">
+              <table>
+                <tbody>
+                  {[...lojas]
+                    .sort((a, b) => b.produtosComMenorPreco - a.produtosComMenorPreco)
+                    .map((l) => (
+                      <tr key={l.id}>
+                        <td className="descricao-produto">{l.nome}</td>
+                        <td className="fraco">
+                          {l.municipio}/{l.uf}
+                        </td>
+                        <td className="num">
+                          {l.produtosComMenorPreco} de {resultado.produtos.length}
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </>
       )}

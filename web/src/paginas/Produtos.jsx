@@ -82,38 +82,40 @@ export default function Produtos() {
         {produtos?.length === 0 ? (
           <Vazio>Nenhum produto encontrado com os critérios informados.</Vazio>
         ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Produto</th>
-                <th>EAN</th>
-                <th>NCM</th>
-                <th className="num">Compras</th>
-                <th className="num">Menor</th>
-                <th className="num">Médio</th>
-                <th className="num">Maior</th>
-                <th className="num">Última</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(produtos ?? []).map((p) => (
-                <tr key={p.id}>
-                  <td>
-                    <Link to={`/produtos/${p.id}`} className="descricao-produto">
-                      {p.descricao}
-                    </Link>
-                  </td>
-                  <td className="mono fraco">{p.ean ?? '—'}</td>
-                  <td className="mono fraco">{p.ncm ?? '—'}</td>
-                  <td className="num">{p.ocorrencias}</td>
-                  <td className="num">{moeda(p.menorPreco)}</td>
-                  <td className="num">{moeda(p.precoMedio)}</td>
-                  <td className="num">{moeda(p.maiorPreco)}</td>
-                  <td className="num fraco">{dataBr(p.ultimaCompra)}</td>
+          <div className="rolagem-horizontal">
+            <table>
+              <thead>
+                <tr>
+                  <th>Produto</th>
+                  <th>EAN</th>
+                  <th>NCM</th>
+                  <th className="num">Compras</th>
+                  <th className="num">Menor</th>
+                  <th className="num">Médio</th>
+                  <th className="num">Maior</th>
+                  <th className="num">Última</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {(produtos ?? []).map((p) => (
+                  <tr key={p.id}>
+                    <td>
+                      <Link to={`/produtos/${p.id}`} className="descricao-produto">
+                        {p.descricao}
+                      </Link>
+                    </td>
+                    <td className="mono fraco">{p.ean ?? '—'}</td>
+                    <td className="mono fraco">{p.ncm ?? '—'}</td>
+                    <td className="num">{p.ocorrencias}</td>
+                    <td className="num">{moeda(p.menorPreco)}</td>
+                    <td className="num">{moeda(p.precoMedio)}</td>
+                    <td className="num">{moeda(p.maiorPreco)}</td>
+                    <td className="num fraco">{dataBr(p.ultimaCompra)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </>

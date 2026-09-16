@@ -102,25 +102,27 @@ export default function Painel() {
           {resumo.maioresVariacoes.length === 0 ? (
             <Vazio>Importe mais notas para comparar preços.</Vazio>
           ) : (
-            <table>
-              <tbody>
-                {resumo.maioresVariacoes.map((p) => (
-                  <tr key={p.id}>
-                    <td>
-                      <Link to={`/produtos/${p.id}`} className="descricao-produto">
-                        {p.descricao}
-                      </Link>
-                      <div className="fraco" style={{ fontSize: '0.78rem' }}>
-                        {moeda(p.menorPreco)} → {moeda(p.maiorPreco)}
-                      </div>
-                    </td>
-                    <td className="num">
-                      <span className="etiqueta estavel">{percentual(p.amplitudePercentual)}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div className="rolagem-horizontal">
+              <table>
+                <tbody>
+                  {resumo.maioresVariacoes.map((p) => (
+                    <tr key={p.id}>
+                      <td>
+                        <Link to={`/produtos/${p.id}`} className="descricao-produto">
+                          {p.descricao}
+                        </Link>
+                        <div className="fraco" style={{ fontSize: '0.78rem' }}>
+                          {moeda(p.menorPreco)} → {moeda(p.maiorPreco)}
+                        </div>
+                      </td>
+                      <td className="num">
+                        <span className="etiqueta estavel">{percentual(p.amplitudePercentual)}</span>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       </div>
@@ -134,40 +136,42 @@ export default function Painel() {
         {recorrentes.length === 0 ? (
           <Vazio>Nenhum produto recorrente identificado até o momento.</Vazio>
         ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Produto</th>
-                <th>NCM</th>
-                <th className="num">Compras</th>
-                <th className="num">Menor</th>
-                <th className="num">Médio</th>
-                <th className="num">Maior</th>
-                <th className="num">Amplitude</th>
-                <th className="num">Total gasto</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recorrentes.map((p) => (
-                <tr key={p.id}>
-                  <td>
-                    <Link to={`/produtos/${p.id}`} className="descricao-produto">
-                      {p.descricao}
-                    </Link>
-                  </td>
-                  <td className="mono fraco">{p.ncm ?? '—'}</td>
-                  <td className="num">{p.ocorrencias}</td>
-                  <td className="num">{moeda(p.menorPreco)}</td>
-                  <td className="num">{moeda(p.precoMedio)}</td>
-                  <td className="num">{moeda(p.maiorPreco)}</td>
-                  <td className="num">
-                    <span className="etiqueta estavel">{percentual(p.amplitudePercentual)}</span>
-                  </td>
-                  <td className="num">{moeda(p.totalGasto)}</td>
+          <div className="rolagem-horizontal">
+            <table>
+              <thead>
+                <tr>
+                  <th>Produto</th>
+                  <th>NCM</th>
+                  <th className="num">Compras</th>
+                  <th className="num">Menor</th>
+                  <th className="num">Médio</th>
+                  <th className="num">Maior</th>
+                  <th className="num">Amplitude</th>
+                  <th className="num">Total gasto</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {recorrentes.map((p) => (
+                  <tr key={p.id}>
+                    <td>
+                      <Link to={`/produtos/${p.id}`} className="descricao-produto">
+                        {p.descricao}
+                      </Link>
+                    </td>
+                    <td className="mono fraco">{p.ncm ?? '—'}</td>
+                    <td className="num">{p.ocorrencias}</td>
+                    <td className="num">{moeda(p.menorPreco)}</td>
+                    <td className="num">{moeda(p.precoMedio)}</td>
+                    <td className="num">{moeda(p.maiorPreco)}</td>
+                    <td className="num">
+                      <span className="etiqueta estavel">{percentual(p.amplitudePercentual)}</span>
+                    </td>
+                    <td className="num">{moeda(p.totalGasto)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </>

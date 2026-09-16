@@ -127,61 +127,65 @@ export default function DetalheProduto() {
           <p className="legenda">
             Preço da sua compra mais recente em cada estabelecimento. Só entram as suas notas.
           </p>
-          <table>
-            <thead>
-              <tr>
-                <th>Estabelecimento</th>
-                <th className="num">Preço</th>
-                <th className="num">Referência</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ofertas.map((o) => (
-                <tr key={o.id}>
-                  <td>
-                    <span className="descricao-produto">{o.empresa ?? o.razaoSocial}</span>
-                    <div className="fraco" style={{ fontSize: '0.78rem' }}>
-                      {o.municipio}/{o.uf}
-                    </div>
-                  </td>
-                  <td className="num">
-                    <strong>{moeda(o.valorUnitario)}</strong>
-                    {o.id === melhorOferta?.id && (
-                      <div>
-                        <span className="etiqueta reducao">menor preço</span>
-                      </div>
-                    )}
-                  </td>
-                  <td className="num fraco">{dataBr(o.dataReferencia)}</td>
+          <div className="rolagem-horizontal">
+            <table>
+              <thead>
+                <tr>
+                  <th>Estabelecimento</th>
+                  <th className="num">Preço</th>
+                  <th className="num">Referência</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {ofertas.map((o) => (
+                  <tr key={o.id}>
+                    <td>
+                      <span className="descricao-produto">{o.empresa ?? o.razaoSocial}</span>
+                      <div className="fraco" style={{ fontSize: '0.78rem' }}>
+                        {o.municipio}/{o.uf}
+                      </div>
+                    </td>
+                    <td className="num">
+                      <strong>{moeda(o.valorUnitario)}</strong>
+                      {o.id === melhorOferta?.id && (
+                        <div>
+                          <span className="etiqueta reducao">menor preço</span>
+                        </div>
+                      )}
+                    </td>
+                    <td className="num fraco">{dataBr(o.dataReferencia)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
 
         <div className="cartao">
           <h2>Compras registradas</h2>
           <p className="legenda">Histórico completo deste produto nas suas notas.</p>
-          <table>
-            <thead>
-              <tr>
-                <th>Data</th>
-                <th>Estabelecimento</th>
-                <th className="num">Qtd.</th>
-                <th className="num">Unitário</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...historico].reverse().map((h, i) => (
-                <tr key={i}>
-                  <td className="num">{dataBr(h.dataEmissao)}</td>
-                  <td>{h.empresa}</td>
-                  <td className="num">{h.quantidade}</td>
-                  <td className="num">{moeda(h.valorUnitario)}</td>
+          <div className="rolagem-horizontal">
+            <table>
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Estabelecimento</th>
+                  <th className="num">Qtd.</th>
+                  <th className="num">Unitário</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {[...historico].reverse().map((h, i) => (
+                  <tr key={i}>
+                    <td className="num">{dataBr(h.dataEmissao)}</td>
+                    <td>{h.empresa}</td>
+                    <td className="num">{h.quantidade}</td>
+                    <td className="num">{moeda(h.valorUnitario)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </>

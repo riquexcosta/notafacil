@@ -231,6 +231,8 @@ input, select, textarea {
   color: var(--tinta);
 }
 
+input[type='checkbox'], input[type='radio'] { width: auto; }
+
 input:focus, select:focus, textarea:focus {
   outline: 2px solid var(--azul-100);
   border-color: var(--azul-600);
@@ -406,3 +408,84 @@ button:disabled, .botao:disabled { opacity: 0.55; cursor: not-allowed; filter: n
 .chip.ativo { border-color: var(--azul-600); background: var(--azul-100); color: var(--azul-700); }
 .celula-menor-preco { background: var(--verde-100); color: var(--verde-600); }
 tfoot th { border-top: 2px solid var(--borda); padding-top: 10px; }
+
+/* ------------------------------------------------------ menu recolhível */
+
+.topo-lateral { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.navegacao { display: flex; flex-direction: column; gap: 26px; flex: 1; }
+.botao-menu { display: none; }
+
+/* Itens de grade e o conteúdo podem encolher abaixo da largura das tabelas,
+   que então rolam dentro do próprio cartão. */
+.conteudo, .grade > * { min-width: 0; }
+
+/* O espaço entre cartões empilhados não vale dentro das grades, que já têm gap. */
+.grade > .cartao + .cartao { margin-top: 0; }
+.grade-4 { align-items: stretch; }
+
+/* ------------------------------------------------------------ responsivo */
+
+@media (max-width: 860px) {
+  .app { grid-template-columns: 1fr; }
+
+  .barra-lateral {
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    padding: 10px 16px;
+    gap: 0;
+  }
+  .botao-menu {
+    display: inline-flex;
+    align-items: center;
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+    border-color: rgba(255, 255, 255, 0.22);
+    padding: 7px 12px;
+  }
+  .navegacao { display: none; }
+  .barra-lateral.menu-aberto .navegacao {
+    display: flex;
+    gap: 14px;
+    padding: 12px 0 6px;
+    max-height: calc(100vh - 56px);
+    overflow-y: auto;
+  }
+  .menu a { padding: 11px 12px; font-size: 0.95rem; }
+
+  .conteudo { padding: 18px 16px 40px; }
+  .cabecalho-pagina h1 { font-size: 1.3rem; }
+
+  .grade-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grade-3, .grade-2, .grade-2-1 { grid-template-columns: minmax(0, 1fr); }
+  .painel-chave { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+
+  .tela-login { grid-template-columns: 1fr; }
+  .login-apresentacao { padding: 28px 20px 18px; gap: 10px; }
+  .login-apresentacao h1 { font-size: 1.5rem; max-width: none; }
+  .login-formulario { padding: 24px 20px 36px; justify-content: flex-start; }
+
+  .pagina-avulsa { padding: 20px 16px 40px; }
+
+  /* 16 px evita o zoom automático do iOS ao focar um campo. */
+  input, select, textarea { font-size: 16px; }
+  th, td { padding: 8px; }
+}
+
+@media (max-width: 520px) {
+  .grade { gap: 10px; }
+  .cartao { padding: 14px; }
+  .indicador .valor { font-size: 1.2rem; }
+
+  /* Três botões compactos, só com o título, para a câmera aparecer logo. */
+  .opcoes-leitura { gap: 6px; margin-bottom: 14px; }
+  .opcao-leitura { padding: 9px 6px; text-align: center; }
+  .opcao-leitura strong { font-size: 0.82rem; }
+  .opcao-leitura span { display: none; }
+
+  .login-apresentacao ul { display: none; }
+
+  .barra-acoes > div:first-child { flex-basis: 100%; }
+  .barra-acoes .espaco { display: none; }
+  .barra-acoes > button, .barra-acoes > .botao { flex: 1 1 auto; text-align: center; }
+}

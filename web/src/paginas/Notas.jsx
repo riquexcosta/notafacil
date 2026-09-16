@@ -98,39 +98,41 @@ export default function Notas() {
         {notas?.length === 0 ? (
           <Vazio>Nenhuma nota corresponde aos filtros informados.</Vazio>
         ) : (
-          <table>
-            <thead>
-              <tr>
-                <th>Data</th>
-                <th>Estabelecimento</th>
-                <th>Chave de acesso</th>
-                <th className="num">Itens</th>
-                <th className="num">Tributos</th>
-                <th className="num">Valor</th>
-              </tr>
-            </thead>
-            <tbody>
-              {(notas ?? []).map((n) => (
-                <tr key={n.id}>
-                  <td className="num">{dataBr(n.dataEmissao)}</td>
-                  <td>
-                    <Link to={`/notas/${n.id}`} className="descricao-produto">
-                      {n.nomeFantasia ?? n.razaoSocial}
-                    </Link>
-                    <div className="fraco" style={{ fontSize: '0.78rem' }}>
-                      {n.municipio}/{n.uf}
-                    </div>
-                  </td>
-                  <td className="mono fraco">…{n.chave.slice(-16)}</td>
-                  <td className="num">{n.totalItens}</td>
-                  <td className="num fraco">{moeda(n.valorTributos)}</td>
-                  <td className="num">
-                    <strong>{moeda(n.valorTotal)}</strong>
-                  </td>
+          <div className="rolagem-horizontal">
+            <table>
+              <thead>
+                <tr>
+                  <th>Data</th>
+                  <th>Estabelecimento</th>
+                  <th>Chave de acesso</th>
+                  <th className="num">Itens</th>
+                  <th className="num">Tributos</th>
+                  <th className="num">Valor</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {(notas ?? []).map((n) => (
+                  <tr key={n.id}>
+                    <td className="num">{dataBr(n.dataEmissao)}</td>
+                    <td>
+                      <Link to={`/notas/${n.id}`} className="descricao-produto">
+                        {n.nomeFantasia ?? n.razaoSocial}
+                      </Link>
+                      <div className="fraco" style={{ fontSize: '0.78rem' }}>
+                        {n.municipio}/{n.uf}
+                      </div>
+                    </td>
+                    <td className="mono fraco">…{n.chave.slice(-16)}</td>
+                    <td className="num">{n.totalItens}</td>
+                    <td className="num fraco">{moeda(n.valorTributos)}</td>
+                    <td className="num">
+                      <strong>{moeda(n.valorTotal)}</strong>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </>

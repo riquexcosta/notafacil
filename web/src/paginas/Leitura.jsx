@@ -262,45 +262,47 @@ function ResultadoLeitura({ resultado }) {
           </div>
         </div>
 
-        <table>
-          <thead>
-            <tr>
-              <th>Produto</th>
-              <th className="num">Qtd.</th>
-              <th className="num">Preço pago</th>
-              <th className="num">Preço anterior</th>
-              <th className="num">Menor já pago</th>
-              <th>Comparação</th>
-            </tr>
-          </thead>
-          <tbody>
-            {nota.itens.map((item) => (
-              <tr key={item.id}>
-                <td>
-                  <Link to={`/produtos/${item.produtoId}`} className="descricao-produto">
-                    {item.descricao}
-                  </Link>
-                  <div className="mono fraco" style={{ fontSize: '0.75rem' }}>
-                    EAN {item.ean ?? '—'} · NCM {item.ncm ?? '—'}
-                  </div>
-                </td>
-                <td className="num">
-                  {item.quantidade} {item.unidade}
-                </td>
-                <td className="num">
-                  <strong>{moeda(item.valorUnitario)}</strong>
-                </td>
-                <td className="num fraco">
-                  {item.precoAnterior ? moeda(item.precoAnterior) : '—'}
-                </td>
-                <td className="num fraco">{item.menorPreco ? moeda(item.menorPreco) : '—'}</td>
-                <td>
-                  <EtiquetaSituacao situacao={item.situacao} variacao={item.variacaoPercentual} />
-                </td>
+        <div className="rolagem-horizontal">
+          <table>
+            <thead>
+              <tr>
+                <th>Produto</th>
+                <th className="num">Qtd.</th>
+                <th className="num">Preço pago</th>
+                <th className="num">Preço anterior</th>
+                <th className="num">Menor já pago</th>
+                <th>Comparação</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {nota.itens.map((item) => (
+                <tr key={item.id}>
+                  <td>
+                    <Link to={`/produtos/${item.produtoId}`} className="descricao-produto">
+                      {item.descricao}
+                    </Link>
+                    <div className="mono fraco" style={{ fontSize: '0.75rem' }}>
+                      EAN {item.ean ?? '—'} · NCM {item.ncm ?? '—'}
+                    </div>
+                  </td>
+                  <td className="num">
+                    {item.quantidade} {item.unidade}
+                  </td>
+                  <td className="num">
+                    <strong>{moeda(item.valorUnitario)}</strong>
+                  </td>
+                  <td className="num fraco">
+                    {item.precoAnterior ? moeda(item.precoAnterior) : '—'}
+                  </td>
+                  <td className="num fraco">{item.menorPreco ? moeda(item.menorPreco) : '—'}</td>
+                  <td>
+                    <EtiquetaSituacao situacao={item.situacao} variacao={item.variacaoPercentual} />
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
 
         {economia > 0 && (
           <div className="aviso alerta" style={{ marginTop: 14, background: '#fdf1d6', borderColor: '#f0dcae', color: '#9a6700' }}>

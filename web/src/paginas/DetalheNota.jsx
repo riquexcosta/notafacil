@@ -116,50 +116,52 @@ export default function DetalheNota() {
           Cada item é comparado com a sua compra anterior mais recente do mesmo produto, em qualquer estabelecimento.
           Compras posteriores a esta nota não entram na comparação.
         </p>
-        <table>
-          <thead>
-            <tr>
-              <th>Produto</th>
-              <th className="num">Qtd.</th>
-              <th className="num">Unitário</th>
-              <th className="num">Total</th>
-              <th className="num">Anterior</th>
-              <th>Comparação</th>
-              <th className="num">Compra nº</th>
-            </tr>
-          </thead>
-          <tbody>
-            {nota.itens.map((item) => (
-              <tr key={item.id}>
-                <td>
-                  <Link to={`/produtos/${item.produtoId}`} className="descricao-produto">
-                    {item.descricao}
-                  </Link>
-                  <div className="mono fraco" style={{ fontSize: '0.75rem' }}>
-                    EAN {item.ean ?? '—'} · NCM {item.ncm ?? '—'}
-                  </div>
-                </td>
-                <td className="num">
-                  {item.quantidade} {item.unidade}
-                </td>
-                <td className="num">{moeda(item.valorUnitario)}</td>
-                <td className="num">{moeda(item.valorTotal)}</td>
-                <td className="num fraco">
-                  {item.precoAnterior ? moeda(item.precoAnterior) : '—'}
-                  {item.empresaAnterior && (
-                    <div style={{ fontSize: '0.72rem' }}>
-                      {item.empresaAnterior}, {dataBr(item.dataAnterior)}
-                    </div>
-                  )}
-                </td>
-                <td>
-                  <EtiquetaSituacao situacao={item.situacao} variacao={item.variacaoPercentual} />
-                </td>
-                <td className="num fraco">{item.comparacoes + 1}</td>
+        <div className="rolagem-horizontal">
+          <table>
+            <thead>
+              <tr>
+                <th>Produto</th>
+                <th className="num">Qtd.</th>
+                <th className="num">Unitário</th>
+                <th className="num">Total</th>
+                <th className="num">Anterior</th>
+                <th>Comparação</th>
+                <th className="num">Compra nº</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {nota.itens.map((item) => (
+                <tr key={item.id}>
+                  <td>
+                    <Link to={`/produtos/${item.produtoId}`} className="descricao-produto">
+                      {item.descricao}
+                    </Link>
+                    <div className="mono fraco" style={{ fontSize: '0.75rem' }}>
+                      EAN {item.ean ?? '—'} · NCM {item.ncm ?? '—'}
+                    </div>
+                  </td>
+                  <td className="num">
+                    {item.quantidade} {item.unidade}
+                  </td>
+                  <td className="num">{moeda(item.valorUnitario)}</td>
+                  <td className="num">{moeda(item.valorTotal)}</td>
+                  <td className="num fraco">
+                    {item.precoAnterior ? moeda(item.precoAnterior) : '—'}
+                    {item.empresaAnterior && (
+                      <div style={{ fontSize: '0.72rem' }}>
+                        {item.empresaAnterior}, {dataBr(item.dataAnterior)}
+                      </div>
+                    )}
+                  </td>
+                  <td>
+                    <EtiquetaSituacao situacao={item.situacao} variacao={item.variacaoPercentual} />
+                  </td>
+                  <td className="num fraco">{item.comparacoes + 1}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </>
   );
