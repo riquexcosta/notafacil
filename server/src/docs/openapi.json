@@ -598,7 +598,7 @@
                   "consultaAssistida": {
                     "summary": "Portal exige verificação humana",
                     "value": {
-                      "erro": "A consulta automática não está disponível: o portal da SEFAZ-PB exige verificação humana. Consulte a nota no portal oficial e importe o XML autorizado.",
+                      "erro": "A consulta automática não retornou esta nota. Abra a consulta oficial da SEFAZ-SP, que pode exigir verificação humana, e importe o XML autorizado.",
                       "codigo": "CONSULTA_ASSISTIDA",
                       "urlConsulta": "https://www.sefaz.pb.gov.br/nfce?p=25260307526557000100650010000010011101371370"
                     }

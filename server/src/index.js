@@ -14,6 +14,7 @@ import {
   ProvedorSefaz,
   ProvedorXmlAutorizado
 } from './domain/nfe/provedores.js';
+import { criarGravadorDeAmostras } from './domain/nfe/amostrasInfosimples.js';
 import { cadastroAberto, confiancaNoProxy, limiteDeCadastrosPorHora, pastaDoCliente } from './implantacao.js';
 import { POLITICA, VERSAO_POLITICA } from './lgpd/politica.js';
 import { cabecalhosDeSeguranca, criarLimitadorDeLogin, origensPermitidas } from './seguranca.js';
@@ -61,7 +62,9 @@ const provedorConsulta = new CadeiaDeProvedores(
     ? [new ProvedorSefaz(), new ProvedorCatalogoLocal()]
     : [
         new ProvedorSefaz(),
-        ...(tokenInfosimples ? [new ProvedorInfosimples({ token: tokenInfosimples })] : []),
+        ...(tokenInfosimples
+          ? [new ProvedorInfosimples({ token: tokenInfosimples, aoResponder: criarGravadorDeAmostras() })]
+          : []),
         new ProvedorConsultaAssistida()
       ]
 );

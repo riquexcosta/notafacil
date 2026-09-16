@@ -101,7 +101,7 @@ usa o primeiro que responder.
 | --- | --- | --- |
 | `ProvedorXmlAutorizado` | Importação de arquivo XML | Lê o XML de autorização da NF-e/NFC-e. É o caminho de maior fidelidade, porque os dados vêm do próprio documento. |
 | `ProvedorSefaz` | Sempre tentado primeiro | Ponto de extensão para o serviço de distribuição da SEFAZ. Não implementado, porque exige certificado digital A1/A3 do destinatário. Sinaliza indisponibilidade e a cadeia segue. |
-| `ProvedorInfosimples` | Com `INFOSIMPLES_TOKEN` no `.env` | Consulta a NFC-e pela API da Infosimples, que acessa o portal da SEFAZ-PB e devolve a nota em JSON. Serviço pago por requisição. |
+| `ProvedorInfosimples` | Com `INFOSIMPLES_TOKEN` no `.env` | Consulta a NFC-e pela API da Infosimples, que acessa o portal da SEFAZ da UF da nota e devolve a nota em JSON. Serviço pago por requisição. |
 | `ProvedorConsultaAssistida` | Sem token, ou quando a Infosimples falha | Devolve o endereço da consulta oficial da SEFAZ para o usuário resolver o captcha, e oferece a importação do XML na mesma tela. |
 | `ProvedorCatalogoLocal` | Só com `npm run start:demo` | Monta a nota com itens sintéticos de um catálogo local, a partir dos campos reais da chave. Marca o registro com `origem: 'demo'`. |
 
@@ -206,12 +206,13 @@ Todas são opcionais e ficam em `server/.env` (veja `server/.env.example`).
 
 | Variável | Padrão | Para que serve |
 | --- | --- | --- |
-| `INFOSIMPLES_TOKEN` | vazio | Token da API Infosimples. Com ele, a leitura por chave ou QR consulta o portal da SEFAZ-PB. Sem ele, a aplicação usa a consulta assistida. |
+| `INFOSIMPLES_TOKEN` | vazio | Token da API Infosimples. Com ele, a leitura por chave ou QR consulta o portal da SEFAZ da UF da nota. Sem ele, a aplicação usa a consulta assistida. |
 | `NFE_MODO_DEMO` | vazio | `1` liga o modo demonstração (mesmo efeito de `npm run start:demo`). |
 | `PORT` | `3333` | Porta da API. |
 | `DB_PATH` | `server/data/notafacil.db` | Caminho do arquivo SQLite. Os testes usam um diretório temporário. |
 | `JWT_SECRET` | `notafacil-desenvolvimento` fora de produção | Segredo que assina o token de sessão. **Obrigatório em produção**: com `NODE_ENV=production`, a API não inicia sem ele. |
 | `NODE_ENV` | vazio | `production` ativa as exigências de produção, como o `JWT_SECRET` próprio. |
+| `INFOSIMPLES_AMOSTRAS_DIR` | vazio | Pasta onde gravar cada resposta da Infosimples, sem consumidor, destinatário e dados da conta. Serve para conferir o formato de UFs novas; deixe vazio no uso normal. |
 | `CORS_ORIGENS` | `http://localhost:5173` | Origens autorizadas a chamar a API pelo navegador, separadas por vírgula. |
 | `CADASTRO_ABERTO` | aberto | `false` fecha o cadastro de novas contas: a API responde 403 e a tela de entrada esconde a aba e o link de cadastro. |
 | `LIMITE_CADASTROS_POR_HORA` | `5` | Contas que um mesmo IP pode criar por hora. Acima disso, a API responde 429 com `Retry-After`. |
@@ -231,7 +232,7 @@ O `.env` não vai para o Git.
 | `npm run dev` | Mesmo que o anterior, com recarga automática. |
 | `npm run start:demo` | Sobe a API no modo demonstração. |
 | `npm run seed` | Restaura a conta de demonstração, sem tocar nas outras contas. |
-| `npm test` | Roda os 77 testes automatizados. |
+| `npm test` | Roda os 87 testes automatizados. |
 | `npm run sonda:infosimples -- <chave>` | Faz **uma** consulta real à Infosimples e grava a resposta em `server/data/infosimples-amostra.json`. Consome uma requisição da conta. |
 
 **`web/`**
@@ -394,14 +395,14 @@ Para publicar o sistema: sirva a API e o cliente por HTTPS, defina `JWT_SECRET` 
 npm --prefix server test
 ```
 
-São 77 casos, executados sobre uma base isolada em diretório temporário:
+São 87 casos, executados sobre uma base isolada em diretório temporário:
 
 | Arquivo | Casos | Cobre |
 | --- | --- | --- |
 | `chaveAcesso.test.js` | 10 | Validação e decomposição da chave, extração a partir do QR Code e formatação do CNPJ. |
 | `comparacao.test.js` | 11 | Classificação da variação de preço, economia possível, recusa de duplicidade, indicadores e identidade do produto. |
 | `provedores.test.js` | 6 | Consulta assistida, links de portais oficiais e cadeia de provedores. |
-| `infosimples.test.js` | 8 | Conversão da resposta real, validação do GTIN, datas, notas canceladas e desvio em caso de falha. |
+| `infosimples.test.js` | 18 | Serviços das 27 UFs, conversão dos formatos resumido, completo (SP) e de MG, troca de caminho sem custo (602) e parada em erro cobrado, GTIN, datas, notas canceladas, anonimização das amostras e desvio em caso de falha. |
 | `metricas.test.js` | 17 | Fórmulas do painel, dos produtos, da nota e do comparativo; ordem cronológica da comparação; isolamento entre usuários; exclusão de nota. |
 | `lgpd.test.js` | 13 | Aceite e consentimento no cadastro, política pendente, exportação, correção, exclusão de nota e de conta, descarte do CPF, isolamento pelas rotas, limite de login, CORS e segredo obrigatório em produção. |
 | `implantacao.test.js` | 7 | Cadastro fechado por configuração, limite de cadastros por IP, restauração da conta demo sem afetar outras contas, confiança no proxy, cliente web servido pela API e 404 em JSON para rota inexistente. |
@@ -496,7 +497,10 @@ certbot --nginx -d notafacil.exemplo.com.br
   certificado digital do destinatário.
 - O portal público da NFC-e da SEFAZ-PB exige reCAPTCHA mesmo a partir do QR Code, então
   a leitura automática depende de um intermediário contratado.
-- A integração cobre, nesta versão, apenas notas emitidas na Paraíba.
+- A integração cobre as 27 UFs pelos serviços de NFC-e da Infosimples. O formato da resposta varia:
+  SP, CE e as versões "completa" (AM, BA, GO, RJ, RO) trazem GTIN e NCM; as demais trazem só descrição,
+  quantidade e valores, e a identidade do produto depende da descrição normalizada. A versão SVRS do RS,
+  que exige login e certificado, não é usada.
 - O retorno do portal não traz a classificação fiscal nem os tributos por item, e o
   código de barras só aparece quando o estabelecimento o cadastra.
 - A base de demonstração é sintética e reprodutível. As chaves de acesso são válidas,
