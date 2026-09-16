@@ -1,5 +1,5 @@
 /**
- * Sonda da API Infosimples: faz UMA consulta real de NFC-e, de qualquer UF, e
+ * Sonda da API Infosimples: faz UMA consulta real de NFC-e ou NF-e, de qualquer UF, e
  * grava a resposta anonimizada em data/infosimples-amostras/, usada para
  * conferir o formato de cada serviço. Mostra também a nota já convertida.
  *

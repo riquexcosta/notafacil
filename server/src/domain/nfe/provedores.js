@@ -178,6 +178,12 @@ export const SERVICOS_INFOSIMPLES = {
   TO: ['sefaz/to/nfce']
 };
 
+/**
+ * NF-e de modelo 55 (compras on-line, notas emitidas ao CPF): serviço unificado,
+ * que consulta o portal nacional e os estaduais e responde no formato completo.
+ */
+export const SERVICOS_INFOSIMPLES_NFE = ['sefaz/nfe'];
+
 /** Códigos que a Infosimples não cobra e que indicam serviço errado ou não liberado para o token. */
 const CODIGOS_TENTAR_PROXIMO = new Set([602, 603]);
 
@@ -375,6 +381,7 @@ export class ProvedorInfosimples {
   constructor({
     token,
     servicos = SERVICOS_INFOSIMPLES,
+    servicosNfe = SERVICOS_INFOSIMPLES_NFE,
     fetch = globalThis.fetch,
     timeoutSegundos = 120,
     registrar = console.warn,
@@ -382,6 +389,7 @@ export class ProvedorInfosimples {
   } = {}) {
     this.token = token;
     this.aoResponder = aoResponder;
+    this.servicosNfe = servicosNfe;
     this.servicos = servicos;
     this.fetch = fetch;
     this.timeoutSegundos = timeoutSegundos;
@@ -394,11 +402,15 @@ export class ProvedorInfosimples {
 
   async consultar(chave) {
     const meta = interpretarChave(chave);
-    const candidatos = meta.modelo === '65' ? lista(this.servicos[meta.uf]) : [];
-    if (!candidatos.length) throw indisponivel(`Infosimples: sem serviço de NFC-e para ${meta.uf ?? 'esta UF'}.`);
+    // NFC-e (65) usa o serviço da UF com o parâmetro nfce; NF-e (55), o unificado com o parâmetro nfe.
+    const nfe = meta.modelo === '55';
+    const candidatos = nfe ? lista(this.servicosNfe) : meta.modelo === '65' ? lista(this.servicos[meta.uf]) : [];
+    if (!candidatos.length) {
+      throw indisponivel(`Infosimples: sem serviço para o modelo ${meta.modelo} em ${meta.uf ?? 'esta UF'}.`);
+    }
 
     for (const servico of candidatos) {
-      const resposta = await this.chamar(servico, chave);
+      const resposta = await this.chamar(servico, chave, nfe ? 'nfe' : 'nfce');
       this.aoResponder?.(servico, chave, resposta);
       if (resposta?.code === 200 && resposta.data?.[0]) {
         return converterRespostaInfosimples(resposta.data[0], chave, meta);
@@ -410,15 +422,15 @@ export class ProvedorInfosimples {
       if (CODIGOS_TENTAR_PROXIMO.has(resposta?.code) && resposta?.header?.billable !== true) continue;
       throw indisponivel(`Infosimples respondeu ${resposta?.code}: ${motivo}`);
     }
-    throw indisponivel(`Infosimples: nenhum serviço de NFC-e disponível para ${meta.uf}.`);
+    throw indisponivel(`Infosimples: nenhum serviço disponível para o modelo ${meta.modelo} em ${meta.uf}.`);
   }
 
-  async chamar(servico, chave) {
+  async chamar(servico, chave, parametro = 'nfce') {
     try {
       const http = await this.fetch(`https://api.infosimples.com/api/v2/consultas/${servico}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({ token: this.token, timeout: String(this.timeoutSegundos), nfce: chave }),
+        body: new URLSearchParams({ token: this.token, timeout: String(this.timeoutSegundos), [parametro]: chave }),
         signal: AbortSignal.timeout((this.timeoutSegundos + 15) * 1000)
       });
       return await http.json();

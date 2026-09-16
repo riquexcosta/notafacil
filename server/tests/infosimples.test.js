@@ -94,8 +94,8 @@ test('falha de rede também recai na consulta assistida', async () => {
   await assert.rejects(cadeia.consultar(CHAVE), { codigo: 'CONSULTA_ASSISTIDA' });
 });
 
-test('NF-e de modelo 55 não gera chamada paga', async () => {
-  const base = '35' + '2603' + '07526557000100' + '55' + '001' + '000000001' + '1' + '10000001';
+test('modelo sem serviço (NFS-e/outros) não gera chamada paga', async () => {
+  const base = '35' + '2603' + '07526557000100' + '57' + '001' + '000000001' + '1' + '10000001';
   const { provedor, chamadas } = criarProvedor();
   await assert.rejects(provedor.consultar(base + calcularDigitoVerificador(base)), {
     codigo: 'PROVEDOR_INDISPONIVEL'
@@ -298,4 +298,37 @@ test('o provedor entrega cada resposta ao gravador de amostras, quando configura
   });
   await provedor.consultar(CHAVE);
   assert.deepEqual(recebidas, [['sefaz/pb/nfce', CHAVE, 200]]);
+});
+
+test('NF-e de modelo 55 usa o serviço unificado sefaz/nfe com o parâmetro nfe', async () => {
+  const base = '25' + '2608' + '05457026000187' + '55' + '001' + '000795396' + '1' + '20904187';
+  const chaveNfe = base + calcularDigitoVerificador(base);
+  const chamadas = [];
+  const fetch = async (url, opcoes) => {
+    chamadas.push({ url, corpo: Object.fromEntries(opcoes.body) });
+    return {
+      json: async () => ({
+        code: 200,
+        data: [
+          {
+            nfe: { numero: '795396', serie: '1', data_emissao: '20/08/2026 09:12:00-03:00', situacao: 'Autorizada' },
+            emitente: { cnpj: '05.457.026/0001-87', nome: 'LOJA ONLINE LTDA', municipio: 'JOAO PESSOA', uf: 'PB' },
+            totais: { normalizado_valor_nfe: 199.9, normalizado_valor_tributos: 45.1 },
+            produtos: [
+              { descricao: 'FONE BLUETOOTH', ean_comercial: 'SEM GTIN', ncm: '85183000', quantidade_comercial: '1,0000', valor_unitario_comercial: '199,90', normalizado_valor: 199.9 }
+            ]
+          }
+        ]
+      })
+    };
+  };
+  const provedor = new ProvedorInfosimples({ token: 't', fetch, registrar: () => {} });
+  const nota = await provedor.consultar(chaveNfe);
+  assert.equal(chamadas.length, 1);
+  assert.match(chamadas[0].url, /\/consultas\/sefaz\/nfe$/);
+  assert.equal(chamadas[0].corpo.nfe, chaveNfe);
+  assert.equal(chamadas[0].corpo.nfce, undefined);
+  assert.equal(nota.modelo, '55');
+  assert.equal(nota.valorTotal, 199.9);
+  assert.deepEqual([nota.itens[0].ean, nota.itens[0].ncm, nota.itens[0].valorTotal], [null, '85183000', 199.9]);
 });
