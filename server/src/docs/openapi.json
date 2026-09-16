@@ -69,12 +69,17 @@
                     },
                     "versao": {
                       "type": "string"
+                    },
+                    "cadastroAberto": {
+                      "type": "boolean",
+                      "description": "Indica se a instalação aceita novas contas (CADASTRO_ABERTO)."
                     }
                   }
                 },
                 "example": {
                   "status": "ok",
-                  "versao": "1.0.0"
+                  "versao": "1.0.0",
+                  "cadastroAberto": true
                 }
               }
             }
@@ -201,6 +206,19 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/Autenticacao"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Cadastro fechado nesta instalação (CADASTRO_ABERTO=false)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                },
+                "example": {
+                  "erro": "O cadastro de novas contas está fechado nesta instalação."
                 }
               }
             }

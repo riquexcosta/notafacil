@@ -9,6 +9,8 @@ export default function Entrar() {
   const [aceitePolitica, setAceitePolitica] = useState(false);
   const [consentimento, setConsentimento] = useState(false);
   const [versaoPolitica, setVersaoPolitica] = useState(null);
+  // Só mostra a aba de cadastro quando a instalação aceita novas contas.
+  const [cadastroAberto, setCadastroAberto] = useState(false);
   const [erro, setErro] = useState(null);
   const [carregando, setCarregando] = useState(false);
 
@@ -17,10 +19,14 @@ export default function Entrar() {
       .privacidade()
       .then((p) => setVersaoPolitica(p.versao))
       .catch(() => setVersaoPolitica(null));
+    api
+      .saude()
+      .then((s) => setCadastroAberto(s.cadastroAberto !== false))
+      .catch(() => setCadastroAberto(false));
   }, []);
 
   const alterar = (campo) => (evento) => setDados({ ...dados, [campo]: evento.target.value });
-  const cadastro = aba === 'cadastro';
+  const cadastro = cadastroAberto && aba === 'cadastro';
 
   async function enviar(evento) {
     evento.preventDefault();
@@ -64,14 +70,18 @@ export default function Entrar() {
       </section>
 
       <section className="login-formulario">
-        <div className="abas">
-          <button type="button" className={!cadastro ? 'ativa' : undefined} onClick={() => setAba('entrar')}>
-            Entrar
-          </button>
-          <button type="button" className={cadastro ? 'ativa' : undefined} onClick={() => setAba('cadastro')}>
-            Criar conta
-          </button>
-        </div>
+        {cadastroAberto ? (
+          <div className="abas">
+            <button type="button" className={!cadastro ? 'ativa' : undefined} onClick={() => setAba('entrar')}>
+              Entrar
+            </button>
+            <button type="button" className={cadastro ? 'ativa' : undefined} onClick={() => setAba('cadastro')}>
+              Criar conta
+            </button>
+          </div>
+        ) : (
+          <h2 className="titulo-entrar">Entrar</h2>
+        )}
 
         <form onSubmit={enviar}>
           {cadastro && (

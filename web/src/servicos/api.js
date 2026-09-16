@@ -56,6 +56,7 @@ const comQuery = (caminho, params = {}) => {
 const json = (metodo, corpo) => ({ method: metodo, body: JSON.stringify(corpo) });
 
 export const api = {
+  saude: () => requisitar('/saude'),
   privacidade: () => requisitar('/privacidade'),
 
   cadastrar: (dados) => requisitar('/auth/cadastro', json('POST', dados)),

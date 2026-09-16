@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import path from 'node:path';
 import express from 'express';
 import cors from 'cors';
 import { z } from 'zod';
@@ -13,6 +14,7 @@ import {
   ProvedorSefaz,
   ProvedorXmlAutorizado
 } from './domain/nfe/provedores.js';
+import { cadastroAberto, confiancaNoProxy, pastaDoCliente } from './implantacao.js';
 import { POLITICA, VERSAO_POLITICA } from './lgpd/politica.js';
 import { cabecalhosDeSeguranca, criarLimitadorDeLogin, origensPermitidas } from './seguranca.js';
 import { compararEstabelecimentos } from './services/comparativoService.js';
@@ -42,6 +44,7 @@ import {
 
 const app = express();
 app.disable('x-powered-by');
+app.set('trust proxy', confiancaNoProxy());
 app.use(cabecalhosDeSeguranca);
 app.use(cors({ origin: origensPermitidas() }));
 app.use(express.json({ limit: '5mb' }));
@@ -67,7 +70,9 @@ const provedorXml = new ProvedorXmlAutorizado();
 const rota = (handler) => (req, res, next) => Promise.resolve(handler(req, res, next)).catch(next);
 const idDaRota = (req) => z.coerce.number().int().positive().parse(req.params.id);
 
-app.get('/api/saude', (_req, res) => res.json({ status: 'ok', versao: '1.0.0' }));
+app.get('/api/saude', (_req, res) =>
+  res.json({ status: 'ok', versao: '1.0.0', cadastroAberto: cadastroAberto() })
+);
 
 /* ----------------------------------------------------------- documentação */
 
@@ -117,7 +122,12 @@ const esquemaCadastro = z.object({
 
 app.post(
   '/api/auth/cadastro',
-  rota((req, res) => res.status(201).json(registrar(esquemaCadastro.parse(req.body))))
+  rota((req, res) => {
+    if (!cadastroAberto()) {
+      return res.status(403).json({ erro: 'O cadastro de novas contas está fechado nesta instalação.' });
+    }
+    res.status(201).json(registrar(esquemaCadastro.parse(req.body)));
+  })
 );
 
 const limitadorDeLogin = criarLimitadorDeLogin();
@@ -364,6 +374,18 @@ app.get(
   exigirAutenticacao,
   rota((req, res) => res.json(resumoDoUsuario(req.usuarioId)))
 );
+
+/* ------------------------------------------------------------ cliente web */
+
+// Em produção, a API serve o build do cliente na mesma origem. Rotas que não
+// começam por /api devolvem o index.html para o roteamento do React.
+const CLIENTE = pastaDoCliente();
+if (fs.existsSync(path.join(CLIENTE, 'index.html'))) {
+  app.use(express.static(CLIENTE, { index: false }));
+  app.get(/^(?!\/api(?:\/|$)).*/, (_req, res) => res.sendFile(path.join(CLIENTE, 'index.html')));
+}
+
+app.use('/api', (_req, res) => res.status(404).json({ erro: 'Rota não encontrada.' }));
 
 /* ----------------------------------------------------- tratamento de erro */
 

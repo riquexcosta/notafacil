@@ -1,0 +1,18 @@
+# /etc/systemd/system/notafacil-demo.service
+# Recria a base de demonstração. ATENÇÃO: o seed apaga todas as contas e notas;
+# use apenas em instalações com o cadastro fechado (CADASTRO_ABERTO=false).
+[Unit]
+Description=NotaFácil: restaura a conta de demonstração
+
+[Service]
+Type=oneshot
+User=notafacil
+Group=notafacil
+WorkingDirectory=/opt/notafacil/app/server
+EnvironmentFile=/opt/notafacil/app/server/.env
+ExecStart=/opt/notafacil/node/bin/node src/seed.js
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/notafacil

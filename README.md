@@ -26,6 +26,7 @@ Engenharia de Software da Unicesumar. Autor: **Henrique Gonsalves Costa**.
 - [Privacidade e LGPD](#privacidade-e-lgpd)
 - [Testes](#testes)
 - [Capturas e diagramas](#capturas-e-diagramas)
+- [Publicação em servidor](#publicação-em-servidor)
 - [Problemas comuns](#problemas-comuns)
 - [Limitações conhecidas](#limitações-conhecidas)
 - [Licença](#licença)
@@ -206,6 +207,9 @@ Todas são opcionais e ficam em `server/.env` (veja `server/.env.example`).
 | `JWT_SECRET` | `notafacil-desenvolvimento` fora de produção | Segredo que assina o token de sessão. **Obrigatório em produção**: com `NODE_ENV=production`, a API não inicia sem ele. |
 | `NODE_ENV` | vazio | `production` ativa as exigências de produção, como o `JWT_SECRET` próprio. |
 | `CORS_ORIGENS` | `http://localhost:5173` | Origens autorizadas a chamar a API pelo navegador, separadas por vírgula. |
+| `CADASTRO_ABERTO` | aberto | `false` fecha o cadastro de novas contas: a API responde 403 e a tela de entrada esconde a aba de cadastro. |
+| `TRUST_PROXY` | desligado | Valor de `trust proxy` do Express atrás de um proxy reverso (`loopback` ou número de saltos), para o limite de login usar o IP real do cliente. |
+| `CLIENTE_DIR` | `web/dist` | Pasta do build do cliente. Quando existe, a API serve o cliente na mesma origem, com as rotas do React. |
 | `VITE_API_URL` | `http://localhost:3333` | Destino do proxy `/api` do cliente em desenvolvimento. |
 
 O `.env` não vai para o Git.
@@ -220,7 +224,7 @@ O `.env` não vai para o Git.
 | `npm run dev` | Mesmo que o anterior, com recarga automática. |
 | `npm run start:demo` | Sobe a API no modo demonstração. |
 | `npm run seed` | Recria a base de demonstração. |
-| `npm test` | Roda os 70 testes automatizados. |
+| `npm test` | Roda os 75 testes automatizados. |
 | `npm run sonda:infosimples -- <chave>` | Faz **uma** consulta real à Infosimples e grava a resposta em `server/data/infosimples-amostra.json`. Consome uma requisição da conta. |
 
 **`web/`**
@@ -383,7 +387,7 @@ Para publicar o sistema: sirva a API e o cliente por HTTPS, defina `JWT_SECRET` 
 npm --prefix server test
 ```
 
-São 70 casos, executados sobre uma base isolada em diretório temporário:
+São 75 casos, executados sobre uma base isolada em diretório temporário:
 
 | Arquivo | Casos | Cobre |
 | --- | --- | --- |
@@ -393,6 +397,7 @@ São 70 casos, executados sobre uma base isolada em diretório temporário:
 | `infosimples.test.js` | 8 | Conversão da resposta real, validação do GTIN, datas, notas canceladas e desvio em caso de falha. |
 | `metricas.test.js` | 17 | Fórmulas do painel, dos produtos, da nota e do comparativo; ordem cronológica da comparação; isolamento entre usuários; exclusão de nota. |
 | `lgpd.test.js` | 13 | Aceite e consentimento no cadastro, política pendente, exportação, correção, exclusão de nota e de conta, descarte do CPF, isolamento pelas rotas, limite de login, CORS e segredo obrigatório em produção. |
+| `implantacao.test.js` | 5 | Cadastro fechado por configuração, confiança no proxy, cliente web servido pela API e 404 em JSON para rota inexistente. |
 | `openapi.test.js` | 5 | Estrutura da especificação e sincronia com as rotas: falha se uma rota ficar sem documentação ou se a documentação citar rota inexistente. |
 
 Nenhum teste faz chamada paga: a Infosimples é substituída por um duplo que devolve uma
@@ -425,6 +430,43 @@ Windows.
 Antes de gerar capturas para o artigo, rode o seed para que os números das telas batam
 com os relatados no texto.
 
+## Publicação em servidor
+
+A instalação de demonstração roda em uma VPS Linux com nginx e HTTPS. A API serve o build do
+cliente na mesma origem, então há um único serviço. Os arquivos ficam em [`implantacao/`](implantacao/):
+
+| Arquivo | Destino na VPS | Função |
+| --- | --- | --- |
+| `notafacil.service` | `/etc/systemd/system/` | Serviço da aplicação, com usuário próprio e escrita só em `/var/lib/notafacil`. |
+| `notafacil-demo.service` e `.timer` | `/etc/systemd/system/` | Restaura a conta de demonstração todo dia às 4h (horário de Brasília). |
+| `nginx-notafacil.conf` | `/etc/nginx/sites-available/notafacil` | Proxy reverso; o certbot acrescenta o HTTPS. |
+| `env.producao.exemplo` | `/opt/notafacil/app/server/.env` | Variáveis de produção. |
+| `atualizar.sh` | executado da pasta do repositório | Baixa a versão nova, instala, gera o build e reinicia o serviço. |
+
+Estrutura na VPS: o Node fica em `/opt/notafacil/node` (sem alterar o Node do sistema), o
+repositório em `/opt/notafacil/app` e a base em `/var/lib/notafacil/notafacil.db`.
+
+Instalação inicial, como root:
+
+```bash
+useradd --system --home /opt/notafacil --shell /usr/sbin/nologin notafacil
+mkdir -p /opt/notafacil /var/lib/notafacil && chown notafacil: /opt/notafacil /var/lib/notafacil
+# Node 24 em /opt/notafacil/node (tarball oficial de nodejs.org)
+sudo -u notafacil git clone https://github.com/riquexcosta/notafacil.git /opt/notafacil/app
+# .env a partir de implantacao/env.producao.exemplo (chmod 600, dono notafacil)
+cp /opt/notafacil/app/implantacao/notafacil{,-demo}.service /opt/notafacil/app/implantacao/notafacil-demo.timer /etc/systemd/system/
+systemctl daemon-reload && systemctl enable notafacil notafacil-demo.timer
+bash /opt/notafacil/app/implantacao/atualizar.sh        # instala, gera o build e inicia
+systemctl start notafacil-demo.service                  # cria a conta de demonstração
+sed 's/DOMINIO/notafacil.exemplo.com.br/; s/PORTA/3333/' /opt/notafacil/app/implantacao/nginx-notafacil.conf > /etc/nginx/sites-available/notafacil
+ln -s /etc/nginx/sites-available/notafacil /etc/nginx/sites-enabled/ && nginx -t && systemctl reload nginx
+systemctl start notafacil-demo.timer
+certbot --nginx -d notafacil.exemplo.com.br
+```
+
+> O seed **apaga todas as contas e notas** antes de criar a conta de demonstração. Por isso a
+> restauração diária só deve ser ativada com `CADASTRO_ABERTO=false`.
+
 ## Problemas comuns
 
 | Sintoma | Causa provável e solução |
@@ -438,6 +480,7 @@ com os relatados no texto.
 | `Muitas tentativas de login` (429) | Foram 5 senhas erradas em 15 minutos para o mesmo e-mail. Aguarde o tempo indicado. |
 | Depois de entrar, abre a política de privacidade | A conta ainda não aceitou a versão vigente da política. Leia e aceite para continuar. |
 | API não inicia com `JWT_SECRET é obrigatório em produção` | `NODE_ENV=production` sem `JWT_SECRET`. Defina um segredo longo e aleatório no `.env`. |
+| Aba "Criar conta" não aparece | A instalação está com `CADASTRO_ABERTO=false`. Use a conta de demonstração. |
 | Base com dados estranhos após testes manuais | Rode `npm --prefix server run seed` para recriar a base de demonstração. |
 
 ## Limitações conhecidas

@@ -1,0 +1,10 @@
+# /etc/systemd/system/notafacil-demo.timer
+[Unit]
+Description=NotaFácil: restaura a conta de demonstração todo dia às 4h (Brasília)
+
+[Timer]
+OnCalendar=*-*-* 04:00:00 America/Sao_Paulo
+Persistent=false
+
+[Install]
+WantedBy=timers.target

@@ -1,0 +1,24 @@
+# /etc/systemd/system/notafacil.service
+[Unit]
+Description=NotaFácil (API e cliente web)
+After=network.target
+
+[Service]
+Type=simple
+User=notafacil
+Group=notafacil
+WorkingDirectory=/opt/notafacil/app/server
+EnvironmentFile=/opt/notafacil/app/server/.env
+ExecStart=/opt/notafacil/node/bin/node src/index.js
+Restart=always
+RestartSec=5
+
+# Isolamento: o serviço só escreve na pasta da base de dados.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/notafacil
+
+[Install]
+WantedBy=multi-user.target
