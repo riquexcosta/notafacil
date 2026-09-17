@@ -10,8 +10,8 @@ Engenharia de Software da Unicesumar. Autor: **Henrique Gonsalves Costa**.
 
 **Demonstração online:** https://notafacil.henriquegratidao.com.br, com a conta
 `demo@notafacil.app` e a senha `demo1234`, ou crie a sua conta em
-https://notafacil.henriquegratidao.com.br/cadastro. A conta de demonstração é restaurada todo dia
-às 4h (horário de Brasília), sem afetar as contas criadas.
+https://notafacil.henriquegratidao.com.br/cadastro. A conta de demonstração não é restaurada
+automaticamente nessa instalação: as notas registradas nela permanecem.
 
 ---
 
@@ -459,7 +459,7 @@ cliente na mesma origem, então há um único serviço. Os arquivos ficam em [`i
 | Arquivo | Destino na VPS | Função |
 | --- | --- | --- |
 | `notafacil.service` | `/etc/systemd/system/` | Serviço da aplicação, com usuário próprio e escrita só em `/var/lib/notafacil`. |
-| `notafacil-demo.service` e `.timer` | `/etc/systemd/system/` | Restaura a conta de demonstração todo dia às 4h (horário de Brasília). |
+| `notafacil-demo.service` e `.timer` | `/etc/systemd/system/` | Restaura a conta de demonstração todo dia às 4h (horário de Brasília), quando o timer está ativo. Opcional: `systemctl disable --now notafacil-demo.timer` desliga. |
 | `nginx-notafacil.conf` | `/etc/nginx/sites-available/notafacil` | Proxy reverso; o certbot acrescenta o HTTPS. |
 | `env.producao.exemplo` | `/opt/notafacil/app/server/.env` | Variáveis de produção. |
 | `atualizar.sh` | executado da pasta do repositório | Baixa a versão nova, instala, gera o build e reinicia o serviço. |
