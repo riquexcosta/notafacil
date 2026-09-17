@@ -17,15 +17,39 @@ export default function DetalheProduto() {
   const [dados, setDados] = useState(null);
   const [erro, setErro] = useState(null);
 
+  const [sugestoes, setSugestoes] = useState([]);
+  const [salvando, setSalvando] = useState(null);
+
   useEffect(() => {
     setDados(null);
-    api.historicoProduto(id).then(setDados).catch((e) => setErro(e.message));
+    Promise.all([api.historicoProduto(id), api.sugestoesVinculo(id)])
+      .then(([detalhe, candidatos]) => {
+        setDados(detalhe);
+        setSugestoes(candidatos);
+      })
+      .catch((e) => setErro(e.message));
   }, [id]);
 
-  if (erro) return <div className="aviso erro">{erro}</div>;
+  // Vincular ou desvincular devolve o detalhe atualizado; as sugestões mudam junto.
+  async function alterarVinculo(acao, outroId) {
+    setSalvando(outroId);
+    setErro(null);
+    try {
+      const detalhe =
+        acao === 'vincular' ? await api.vincularProduto(id, outroId) : await api.desvincularProduto(id, outroId);
+      setDados(detalhe);
+      setSugestoes(await api.sugestoesVinculo(id));
+    } catch (e) {
+      setErro(e.message);
+    } finally {
+      setSalvando(null);
+    }
+  }
+
+  if (erro && !dados) return <div className="aviso erro">{erro}</div>;
   if (!dados) return <Vazio>Carregando histórico…</Vazio>;
 
-  const { produto, historico, ofertas, estatisticas } = dados;
+  const { produto, historico, ofertas, estatisticas, vinculados = [] } = dados;
   // O eixo X usa o índice da compra: duas notas podem ter a mesma data e
   // categorias repetidas quebrariam o traçado da linha.
   const serie = historico.map((h, indice) => ({
@@ -188,6 +212,78 @@ export default function DetalheProduto() {
           </div>
         </div>
       </div>
+
+      {(sugestoes.length > 0 || vinculados.length > 0 || erro) && (
+        <div className="cartao">
+          <h2>Mesmo produto com outro nome</h2>
+          <p className="legenda">
+            Quando a nota não traz o código de barras, cada loja descreve o produto do seu jeito. Confirme os que são o
+            mesmo produto para comparar os preços entre as lojas. O vínculo vale só para a sua conta e para as próximas
+            notas.
+          </p>
+          {erro && <div className="aviso erro">{erro}</div>}
+
+          {sugestoes.length > 0 && (
+            <div className="rolagem-horizontal">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Possível mesmo produto</th>
+                    <th>Onde comprou</th>
+                    <th className="num">Semelhança</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {sugestoes.map((s) => (
+                    <tr key={s.id}>
+                      <td>
+                        <span className="descricao-produto">{s.descricao}</span>
+                        <div className="fraco" style={{ fontSize: '0.75rem' }}>
+                          {s.motivo}
+                        </div>
+                      </td>
+                      <td className="fraco">{s.estabelecimentos.join(', ')}</td>
+                      <td className="num">{percentual(s.pontuacao * 100, 0)}</td>
+                      <td className="num">
+                        <button
+                          type="button"
+                          className="botao-secundario"
+                          disabled={salvando !== null}
+                          onClick={() => alterarVinculo('vincular', s.id)}
+                        >
+                          {salvando === s.id ? 'Vinculando…' : 'É o mesmo produto'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {vinculados.length > 0 && (
+            <>
+              <h3 style={{ margin: '14px 0 6px' }}>Vinculados a este produto</h3>
+              <ul className="lista-vinculos">
+                {vinculados.map((v) => (
+                  <li key={v.id}>
+                    <span>{v.descricao}</span>
+                    <button
+                      type="button"
+                      className="link-botao"
+                      disabled={salvando !== null}
+                      onClick={() => alterarVinculo('desvincular', v.id)}
+                    >
+                      {salvando === v.id ? 'Desfazendo…' : 'Desfazer'}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      )}
     </>
   );
 }

@@ -84,6 +84,17 @@ export function exportarDados(usuarioId) {
     )
     .all(usuarioId);
 
+  const vinculos = db
+    .prepare(
+      `SELECT o.descricao AS produto, o.ean, d.descricao AS mesmoProdutoQue, v.criado_em AS vinculadoEm
+         FROM produto_vinculo v
+         JOIN produto o ON o.id = v.produto_origem_id
+         JOIN produto d ON d.id = v.produto_destino_id
+        WHERE v.usuario_id = ?
+        ORDER BY d.descricao, o.descricao`
+    )
+    .all(usuarioId);
+
   const conta = dadosPublicosDaConta(usuarioId);
   return {
     geradoEm: new Date().toISOString(),
@@ -96,7 +107,8 @@ export function exportarDados(usuarioId) {
       politicaAceitaEm: conta.politicaAceitaEm
     },
     notas: notas.map(({ id, ...nota }) => ({ ...nota, itens: itensDaNota.all(id) })),
-    precosPorEstabelecimento: precos
+    precosPorEstabelecimento: precos,
+    vinculosDeProdutos: vinculos
   };
 }
 

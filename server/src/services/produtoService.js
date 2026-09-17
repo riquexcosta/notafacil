@@ -133,10 +133,22 @@ export function detalharProduto(usuarioId, produtoId) {
     )
     .all(usuarioId, produtoId);
 
+  // Produtos que o usuário confirmou serem este mesmo (vínculo manual).
+  const vinculados = db
+    .prepare(
+      `SELECT p.id, p.descricao, p.ean, v.criado_em AS vinculadoEm
+         FROM produto_vinculo v
+         JOIN produto p ON p.id = v.produto_origem_id
+        WHERE v.usuario_id = ? AND v.produto_destino_id = ?
+        ORDER BY p.descricao`
+    )
+    .all(usuarioId, produtoId);
+
   return {
     produto,
     historico,
     ofertas,
+    vinculados,
     estatisticas: {
       compras: new Set(historico.map((h) => h.notaId)).size,
       menorPreco,

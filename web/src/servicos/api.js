@@ -80,6 +80,9 @@ export const api = {
   buscarProdutos: (filtros) => requisitar(comQuery('/produtos', filtros)),
   produtosRecorrentes: () => requisitar('/produtos/recorrentes'),
   historicoProduto: (id) => requisitar(`/produtos/${id}/historico`),
+  sugestoesVinculo: (id) => requisitar(`/produtos/${id}/sugestoes-vinculo`),
+  vincularProduto: (id, produtoId) => requisitar(`/produtos/${id}/vinculos`, json('POST', { produtoId })),
+  desvincularProduto: (id, origemId) => requisitar(`/produtos/${id}/vinculos/${origemId}`, { method: 'DELETE' }),
 
   listarEmpresas: () => requisitar('/empresas'),
   produtosDaEmpresa: (id) => requisitar(`/empresas/${id}/produtos`),

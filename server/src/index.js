@@ -19,6 +19,7 @@ import { cadastroAberto, confiancaNoProxy, limiteDeCadastrosPorHora, pastaDoClie
 import { POLITICA, VERSAO_POLITICA } from './lgpd/politica.js';
 import { cabecalhosDeSeguranca, criarLimitadorDeLogin, origensPermitidas } from './seguranca.js';
 import { compararEstabelecimentos } from './services/comparativoService.js';
+import { desvincularProduto, sugerirVinculos, vincularProdutos } from './services/vinculoService.js';
 import {
   aceitarPolitica,
   atualizarConta,
@@ -343,6 +344,38 @@ app.get(
   rota((req, res) => {
     const detalhe = detalharProduto(req.usuarioId, idDaRota(req));
     if (!detalhe) return res.status(404).json({ erro: 'Produto não encontrado no seu histórico.' });
+    res.json(detalhe);
+  })
+);
+
+app.get(
+  '/api/produtos/:id/sugestoes-vinculo',
+  exigirAutenticacao,
+  rota((req, res) => {
+    const sugestoes = sugerirVinculos(req.usuarioId, idDaRota(req));
+    if (!sugestoes) return res.status(404).json({ erro: 'Produto não encontrado no seu histórico.' });
+    res.json(sugestoes);
+  })
+);
+
+app.post(
+  '/api/produtos/:id/vinculos',
+  exigirAutenticacao,
+  rota((req, res) => {
+    const { produtoId } = z
+      .object({ produtoId: z.coerce.number().int().positive('Informe o produto a vincular.') })
+      .parse(req.body ?? {});
+    res.json(vincularProdutos(req.usuarioId, idDaRota(req), produtoId));
+  })
+);
+
+app.delete(
+  '/api/produtos/:id/vinculos/:origemId',
+  exigirAutenticacao,
+  rota((req, res) => {
+    const origemId = z.coerce.number().int().positive().parse(req.params.origemId);
+    const detalhe = desvincularProduto(req.usuarioId, idDaRota(req), origemId);
+    if (!detalhe) return res.status(404).json({ erro: 'Vínculo não encontrado.' });
     res.json(detalhe);
   })
 );

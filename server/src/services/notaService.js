@@ -146,8 +146,13 @@ export const importarNota = db.transaction((usuarioId, nota) => {
   const notaId = Number(info.lastInsertRowid);
 
   const inserirItem = db.prepare(
-    `INSERT INTO item_nota (nota_id, produto_id, quantidade, valor_unitario, valor_total, valor_tributos)
-     VALUES (?, ?, ?, ?, ?, ?)`
+    `INSERT INTO item_nota (nota_id, produto_id, produto_resolvido_id, quantidade, valor_unitario, valor_total, valor_tributos)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`
+  );
+
+  // Produto que o usuário vinculou a outro passa a contar no produto de destino.
+  const vinculo = db.prepare(
+    'SELECT produto_destino_id AS destino FROM produto_vinculo WHERE usuario_id = ? AND produto_origem_id = ?'
   );
 
   // Mantém o preço mais recente do usuário em cada estabelecimento: só substitui
@@ -164,10 +169,12 @@ export const importarNota = db.transaction((usuarioId, nota) => {
   const referencia = referenciaDaNota(nota.dataEmissao, horaEmissao);
 
   for (const item of nota.itens) {
-    const produtoId = resolverProduto(item);
+    const resolvido = resolverProduto(item);
+    const produtoId = vinculo.get(usuarioId, resolvido)?.destino ?? resolvido;
     inserirItem.run(
       notaId,
       produtoId,
+      resolvido,
       item.quantidade,
       item.valorUnitario,
       item.valorTotal,
@@ -180,7 +187,7 @@ export const importarNota = db.transaction((usuarioId, nota) => {
 });
 
 /** Recalcula o preço mais recente de um produto em um estabelecimento, para um usuário. */
-function recalcularPreco(usuarioId, empresaId, produtoId) {
+export function recalcularPreco(usuarioId, empresaId, produtoId) {
   db.prepare(
     'DELETE FROM preco_empresa_produto WHERE usuario_id = ? AND empresa_id = ? AND produto_id = ?'
   ).run(usuarioId, empresaId, produtoId);
@@ -202,7 +209,14 @@ function recalcularPreco(usuarioId, empresaId, produtoId) {
  * minimização de dados da LGPD depois de exclusões: nada fica guardado sem uso.
  */
 export function removerRegistrosOrfaos() {
-  db.prepare('DELETE FROM produto WHERE id NOT IN (SELECT produto_id FROM item_nota)').run();
+  // Produtos citados em vínculos continuam: a regra vale para as próximas notas.
+  db.prepare(
+    `DELETE FROM produto
+      WHERE id NOT IN (SELECT produto_id FROM item_nota)
+        AND id NOT IN (SELECT produto_resolvido_id FROM item_nota WHERE produto_resolvido_id IS NOT NULL)
+        AND id NOT IN (SELECT produto_origem_id FROM produto_vinculo)
+        AND id NOT IN (SELECT produto_destino_id FROM produto_vinculo)`
+  ).run();
   db.prepare('DELETE FROM empresa WHERE id NOT IN (SELECT empresa_id FROM nota_fiscal)').run();
 }
 

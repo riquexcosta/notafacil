@@ -502,3 +502,6 @@ tfoot th { border-top: 2px solid var(--borda); padding-top: 10px; }
 .botao.desativado { opacity: 0.55; pointer-events: none; }
 /* Área fora da tela usada para decodificar fotos em boa resolução. */
 .area-foto-oculta { position: absolute; left: -10000px; top: 0; width: 1600px; height: 1600px; visibility: hidden; }
+
+.lista-vinculos { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.lista-vinculos li { display: flex; justify-content: space-between; gap: 12px; align-items: center; font-size: 0.88rem; padding: 6px 0; border-bottom: 1px solid #eef2f7; }

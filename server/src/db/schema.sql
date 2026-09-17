@@ -56,6 +56,9 @@ CREATE TABLE IF NOT EXISTS item_nota (
   id             INTEGER PRIMARY KEY AUTOINCREMENT,
   nota_id        INTEGER NOT NULL REFERENCES nota_fiscal(id) ON DELETE CASCADE,
   produto_id     INTEGER NOT NULL REFERENCES produto(id),
+  -- produto identificado automaticamente na importação; difere de produto_id
+  -- quando o usuário vinculou esse produto a outro (produto_vinculo)
+  produto_resolvido_id INTEGER REFERENCES produto(id),
   quantidade     REAL    NOT NULL DEFAULT 1,
   valor_unitario REAL    NOT NULL,
   valor_total    REAL    NOT NULL,
@@ -76,3 +79,18 @@ CREATE TABLE IF NOT EXISTS preco_empresa_produto (
   data_referencia TEXT    NOT NULL,
   PRIMARY KEY (usuario_id, empresa_id, produto_id)
 );
+
+-- Vínculo manual entre produtos, por usuário: quando a nota não traz o código de
+-- barras, o mesmo produto pode chegar com descrições diferentes em cada loja
+-- ("REF COCA COLA S ACUCAR LT 350ML" e "COCA COLA ZERO LATA 350 ML"). O usuário
+-- confirma que são o mesmo produto, e as compras do produto de origem passam a
+-- contar no de destino, inclusive nas notas importadas depois.
+CREATE TABLE IF NOT EXISTS produto_vinculo (
+  usuario_id         INTEGER NOT NULL REFERENCES usuario(id) ON DELETE CASCADE,
+  produto_origem_id  INTEGER NOT NULL REFERENCES produto(id),
+  produto_destino_id INTEGER NOT NULL REFERENCES produto(id),
+  criado_em          TEXT    NOT NULL DEFAULT (datetime('now')),
+  PRIMARY KEY (usuario_id, produto_origem_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_vinculo_destino ON produto_vinculo(usuario_id, produto_destino_id);

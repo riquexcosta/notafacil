@@ -1,5 +1,6 @@
 import { XMLParser } from 'fast-xml-parser';
 import { interpretarChave, somenteDigitos } from '../chaveAcesso.js';
+import { normalizarGtin } from '../gtin.js';
 import { CATALOGO_DEMONSTRACAO } from './catalogoDemonstracao.js';
 
 /**
@@ -29,11 +30,6 @@ function horaDe(valor) {
   return achado ? `${achado[1]}:${achado[2]}:${achado[3] ?? '00'}` : null;
 }
 
-/** Normaliza um GTIN: a SEFAZ usa "SEM GTIN" quando o produto não possui código. */
-function normalizarEan(valor) {
-  const d = somenteDigitos(valor);
-  return d.length >= 8 ? d : null;
-}
 
 /**
  * ProvedorXmlAutorizado — lê o XML de autorização da NF-e/NFC-e.
@@ -64,7 +60,8 @@ export class ProvedorXmlAutorizado {
       const valorTotal = numero(prod.vProd);
       const quantidade = numero(prod.qCom) || 1;
       return {
-        ean: normalizarEan(prod.cEAN ?? prod.cEANTrib),
+        // "SEM GTIN" e códigos internos da loja não servem como identidade do produto.
+        ean: normalizarGtin(prod.cEAN) ?? normalizarGtin(prod.cEANTrib),
         ncm: prod.NCM ? String(prod.NCM) : null,
         descricao: String(prod.xProd ?? 'Produto sem descrição'),
         unidade: prod.uCom ? String(prod.uCom) : 'UN',
@@ -125,14 +122,7 @@ function indisponivel(mensagem) {
   return erro;
 }
 
-/** Devolve o código só se for um GTIN (EAN-8/12/13/14) com dígito verificador válido. */
-function gtinValido(codigo) {
-  const d = String(codigo ?? '').trim();
-  if (!/^(\d{8}|\d{12,14})$/.test(d)) return null;
-  let soma = 0;
-  for (let i = d.length - 2, peso = 3; i >= 0; i--, peso = 4 - peso) soma += Number(d[i]) * peso;
-  return (10 - (soma % 10)) % 10 === Number(d[d.length - 1]) ? d : null;
-}
+const gtinValido = normalizarGtin;
 
 /** Aceita data ISO (AAAA-MM-DD…) ou brasileira (DD/MM/AAAA). */
 function dataIso(valor) {

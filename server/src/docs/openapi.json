@@ -942,6 +942,144 @@
         "description": "Devolve 404 quando o usuário nunca comprou o produto, para não revelar itens comprados por outros usuários."
       }
     },
+    "/api/produtos/{id}/sugestoes-vinculo": {
+      "get": {
+        "tags": [
+          "Produtos"
+        ],
+        "summary": "Candidatos a mesmo produto com outra descrição",
+        "description": "Compara as descrições dos produtos que o próprio usuário comprou: mesma medida, mesma variante (zero, diet, integral...) e palavras em comum após expandir abreviações. Só sugere; nada é vinculado automaticamente.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Até 5 sugestões, da mais parecida para a menos",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/SugestaoVinculo"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NaoAutorizado"
+          },
+          "404": {
+            "$ref": "#/components/responses/NaoEncontrado"
+          }
+        }
+      }
+    },
+    "/api/produtos/{id}/vinculos": {
+      "post": {
+        "tags": [
+          "Produtos"
+        ],
+        "summary": "Vincula outro produto a este (mesmo produto)",
+        "description": "As compras do produto informado passam para este, inclusive as de notas importadas depois. Vale só para o usuário autenticado.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "produtoId"
+                ],
+                "properties": {
+                  "produtoId": {
+                    "type": "integer"
+                  }
+                },
+                "example": {
+                  "produtoId": 63
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Detalhe do produto com as compras somadas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoricoProduto"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NaoAutorizado"
+          },
+          "404": {
+            "$ref": "#/components/responses/NaoEncontrado"
+          },
+          "422": {
+            "description": "Produto igual ao de destino ou corpo inválido",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Erro"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/produtos/{id}/vinculos/{origemId}": {
+      "delete": {
+        "tags": [
+          "Produtos"
+        ],
+        "summary": "Desfaz um vínculo",
+        "description": "As compras identificadas como o produto de origem voltam a ele.",
+        "parameters": [
+          {
+            "$ref": "#/components/parameters/Id"
+          },
+          {
+            "name": "origemId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Detalhe do produto sem as compras desvinculadas",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoricoProduto"
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/NaoAutorizado"
+          },
+          "404": {
+            "$ref": "#/components/responses/NaoEncontrado"
+          }
+        }
+      }
+    },
     "/api/empresas": {
       "get": {
         "tags": [
@@ -1654,6 +1792,28 @@
                 "description": "(maior − menor) / menor × 100."
               }
             }
+          },
+          "vinculados": {
+            "type": "array",
+            "description": "Produtos que o usuário confirmou serem este mesmo produto.",
+            "items": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer"
+                },
+                "descricao": {
+                  "type": "string"
+                },
+                "ean": {
+                  "type": "string",
+                  "nullable": true
+                },
+                "vinculadoEm": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       },
@@ -2034,6 +2194,58 @@
               }
             }
           }
+        }
+      },
+      "SugestaoVinculo": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer"
+          },
+          "descricao": {
+            "type": "string"
+          },
+          "ean": {
+            "type": "string",
+            "nullable": true
+          },
+          "unidade": {
+            "type": "string",
+            "nullable": true
+          },
+          "compras": {
+            "type": "integer"
+          },
+          "ultimaCompra": {
+            "type": "string",
+            "format": "date"
+          },
+          "estabelecimentos": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "pontuacao": {
+            "type": "number",
+            "description": "Semelhança de 0 a 1 (proporção de palavras em comum)."
+          },
+          "motivo": {
+            "type": "string"
+          }
+        },
+        "example": {
+          "id": 63,
+          "descricao": "COCA COLA ZERO LATA 350 ML",
+          "ean": null,
+          "unidade": "UN",
+          "compras": 2,
+          "ultimaCompra": "2026-09-14",
+          "estabelecimentos": [
+            "POSTO EXPRESSAO COMBUSTIVEIS E CONVENIENCIA LTDA"
+          ],
+          "pontuacao": 0.8,
+          "motivo": "mesma medida (350ML); palavras em comum: COCA, COLA, ZERO, LATA"
         }
       }
     }

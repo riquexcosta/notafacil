@@ -232,7 +232,7 @@ O `.env` não vai para o Git.
 | `npm run dev` | Mesmo que o anterior, com recarga automática. |
 | `npm run start:demo` | Sobe a API no modo demonstração. |
 | `npm run seed` | Restaura a conta de demonstração, sem tocar nas outras contas. |
-| `npm test` | Roda os 93 testes automatizados. |
+| `npm test` | Roda os 102 testes automatizados. |
 | `npm run sonda:infosimples -- <chave>` | Faz **uma** consulta real à Infosimples e grava a resposta em `server/data/infosimples-amostra.json`. Consome uma requisição da conta. |
 
 **`web/`**
@@ -279,7 +279,10 @@ consultas são filtradas pelo usuário autenticado.
 | `GET` | `/api/notas/:id/comparacao` | autenticada | Comparação item a item com o histórico. |
 | `GET` | `/api/produtos` | autenticada | Busca produtos por descrição, código de barras ou classificação fiscal. |
 | `GET` | `/api/produtos/recorrentes` | autenticada | Produtos comprados em duas ou mais notas. |
-| `GET` | `/api/produtos/:id/historico` | autenticada | Série histórica de preço, ofertas por loja e estatísticas. |
+| `GET` | `/api/produtos/:id/historico` | autenticada | Série histórica de preço, ofertas por loja, estatísticas e produtos vinculados. |
+| `GET` | `/api/produtos/:id/sugestoes-vinculo` | autenticada | Produtos do usuário que parecem ser o mesmo, com outra descrição. |
+| `POST` | `/api/produtos/:id/vinculos` | autenticada | Confirma que outro produto é este mesmo (`{ produtoId }`). |
+| `DELETE` | `/api/produtos/:id/vinculos/:origemId` | autenticada | Desfaz o vínculo. |
 | `GET` | `/api/empresas` | autenticada | Estabelecimentos com total gasto e última compra. |
 | `GET` | `/api/empresas/:id/produtos` | autenticada | Produtos comprados em um estabelecimento. |
 | `GET` | `/api/comparativo/estabelecimentos` | autenticada | Comparação de preços e da cesta comum entre lojas, por período. |
@@ -339,15 +342,24 @@ gravação de uma nota ocorre em uma única transação.
 Para reconhecer o mesmo produto em notas de emitentes diferentes, o sistema segue esta
 ordem:
 
-1. **Código de barras (GTIN/EAN)**, aceito somente se o dígito verificador conferir. O
-   portal devolve no mesmo campo códigos internos da loja, como `CFOP5102`, que são
-   descartados por essa checagem.
+1. **Código de barras (GTIN/EAN)**, aceito somente se o dígito verificador conferir e se,
+   sem os zeros à esquerda, tiver ao menos 8 dígitos. O portal devolve no mesmo campo
+   códigos internos da loja (`CFOP5102`, `11956`, `0000000007379`), que são descartados.
 2. **Classificação fiscal (NCM) com a descrição normalizada**, quando não há código de
    barras. A normalização remove acentos, converte para caixa alta e descarta o que não
    é letra ou dígito.
 3. **Descrição normalizada sozinha**, quando a fonte não informa a classificação fiscal,
    como acontece no retorno do portal.
 4. Sem correspondência, registra-se um produto novo.
+
+Nas NFC-e consultadas pelo portal da SEFAZ-PB, o código de barras não vem: o campo traz o
+código interno da loja. A mesma lata chega como `REF COCA COLA S ACUCAR LT 350ML` no
+atacado e `COCA COLA ZERO LATA 350 ML` no posto e vira dois produtos. Para esses casos há o
+**vínculo manual**: na tela do produto, o sistema sugere produtos do próprio usuário com a
+mesma medida, a mesma versão (zero, diet, integral...) e palavras em comum depois de
+expandir abreviações (`REF`, `LT`, `S ACUCAR`). O usuário confirma, as compras passam a
+contar no mesmo produto e a regra vale para as próximas notas. Nada é juntado
+automaticamente, e o vínculo é de cada usuário.
 
 ## Privacidade e LGPD
 
@@ -395,7 +407,7 @@ Para publicar o sistema: sirva a API e o cliente por HTTPS, defina `JWT_SECRET` 
 npm --prefix server test
 ```
 
-São 93 casos, executados sobre uma base isolada em diretório temporário:
+São 102 casos, executados sobre uma base isolada em diretório temporário:
 
 | Arquivo | Casos | Cobre |
 | --- | --- | --- |
@@ -406,6 +418,7 @@ São 93 casos, executados sobre uma base isolada em diretório temporário:
 | `metricas.test.js` | 17 | Fórmulas do painel, dos produtos, da nota e do comparativo; ordem cronológica da comparação; isolamento entre usuários; exclusão de nota. |
 | `lgpd.test.js` | 13 | Aceite e consentimento no cadastro, política pendente, exportação, correção, exclusão de nota e de conta, descarte do CPF, isolamento pelas rotas, limite de login, CORS e segredo obrigatório em produção. |
 | `implantacao.test.js` | 7 | Cadastro fechado por configuração, limite de cadastros por IP, restauração da conta demo sem afetar outras contas, confiança no proxy, cliente web servido pela API e 404 em JSON para rota inexistente. |
+| `vinculos.test.js` | 9 | GTIN com zeros à esquerda, semelhança de descrições (versões e medidas diferentes nunca sugeridas), vincular e desvincular produtos, vínculo aplicado a notas novas, isolamento entre usuários e exportação. |
 | `openapi.test.js` | 5 | Estrutura da especificação e sincronia com as rotas: falha se uma rota ficar sem documentação ou se a documentação citar rota inexistente. |
 
 Nenhum teste faz chamada paga: a Infosimples é substituída por um duplo que devolve uma
